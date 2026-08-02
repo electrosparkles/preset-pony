@@ -1,0 +1,19 @@
+# Build output
+/build/
+/dist/
+
+# Local scratch/diagnostic files - not for the public repo
+compile-errors.txt
+depth_diff.txt
+/old diagnostics/
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+*.iml
+.vscode/
+
+# Logs
+*.log
