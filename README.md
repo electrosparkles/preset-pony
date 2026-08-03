@@ -1,12 +1,12 @@
-# Preset Pony — Fender Mustang III Companion Application
+# Preset Pony — Fender Mustang III/IV/V Companion Application
 
-A Java application to replace the discontinued Fender Fuse software for programming Mustang III v2 amps over USB. It allows control of the same amplifier and effect parameters as Fender Fuse: preset switching, import from file, export to a single file, and bulk export to ZIP or CSV.
+A Java application to replace the discontinued Fender Fuse software for programming Mustang III (and probablly IV and V) v2 amps over USB. It allows control of the same amplifier and effect parameters as Fender Fuse: preset switching, import from file, export to a single file, and bulk export to ZIP or CSV.
 
-This project is written independently (not a port), informed by prior reverse-engineering work on the Mustang USB protocol — see Attribution below.
+This project is written independently, informed by prior reverse-engineering work on the Mustang USB protocol — see Attribution below.
 
 ## About
 
-Preset Pony connects over USB to Fender Mustang III V2 amplifiers, giving you the same amp-model, effect, and preset control that Fender's own (now discontinued) Fuse software provided. Mustang III V1 amps use a similar but not identical USB protocol - some V1 units may partially work, but V1 is not a supported or tested target.
+Preset Pony connects over USB to Fender Mustang III V2 amplifiers, giving you the same amp-model, effect, and preset control that Fender's own (now discontinued) Fuse software provided. Mustang III V1 amps use a similar but not identical USB protocol - some V1 units may partially work, but V1 is not a supported or tested target. Other amps in the Mustang v2 family may work as they also used Fender Fuse. Any amp using the later Tone program likely will not work.
 
 **Disclaimer:** This is an independent, unofficial tool with no affiliation to or endorsement from Fender. It talks directly to your amplifier's USB control interface, including writing settings back to it. **Use it at your own risk.** The developers accept no responsibility or liability for any damage to your amplifier, computer, or other equipment, or for any lost presets, arising from use of this software. The same information is shown in the app's About tab.
 
@@ -25,6 +25,19 @@ Preset Pony connects over USB to Fender Mustang III V2 amplifiers, giving you th
   - Export all presets to CSV
 - **Effect editing**: configure distortion, modulation, delay, and reverb effect chains
 - **FX Loop support**: pre/post-preamp effect placement toggle
+
+---
+
+## Screenshots
+
+### Main Window — Amp Tab
+![Preset Pony main window - Amp tab](docs/screenshots/01-amp-tab.png)
+
+### Effects Tab
+![Effects tab showing effect chain configuration](docs/screenshots/02-effects-tab.png)
+
+### Presets Tab
+![Presets tab with preset list and backup/export controls](docs/screenshots/03-presets-tab.png)
 
 ---
 
@@ -47,7 +60,7 @@ The releases section has the app available as Windows files, or as a jar file fo
 
 ### Windows version
 
-Download the zip file to a location of your choice.  It contains a small exe, the Java application and a Java runtime.  Double click the PresetPony.exe, which should launch the application.
+Download the zip file to a location of your choice, and unzip.  It contains a small exe, the Java application and a Java runtime.  Double click the PresetPony.exe, which should launch the application.
 
 ### Java version (far smaller)
 
@@ -55,7 +68,7 @@ Download the jar file, and run by using the terminal, or command line with `java
 
 ## Building
 
-Run scripts need `javac` on the system PATH.
+Build scripts need `javac` on the system PATH.
 
 ### Linux/macOS
 
