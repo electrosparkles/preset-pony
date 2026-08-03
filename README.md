@@ -109,7 +109,7 @@ Or manually:
 ```bash
 java --enable-native-access=ALL-UNNAMED \
   -cp build:lib/hid4java-0.8.0.jar:lib/jna-5.19.1.jar:lib/jna-platform-5.19.1.jar \
-  com.electrosparkles.presetpony.MustangUiShell
+  com.electrosparkles.presetpony.PresetPony
 ```
 
 ### Building a runnable JAR
