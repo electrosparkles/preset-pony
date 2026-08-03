@@ -68,7 +68,12 @@ Download the jar file, and run by using the terminal, or command line with `java
 
 ## Building
 
-Build scripts need `javac` on the system PATH.
+Build scripts need `javac` on the system PATH.  The following library files need downloading from Maven Central (for now) and placing in the lib folder:
+```
+hidJava-0.8.0.jar
+jna-5.19.1.jar
+jna-platform-5.19.1.jar
+```
 
 ### Linux/macOS
 
