@@ -14,9 +14,14 @@ mkdir -p build
 # Set classpath with all library JARs
 CLASSPATH="lib/hid4java-0.8.0.jar:lib/jna-5.19.1.jar:lib/jna-platform-5.19.1.jar"
 
-# Compile main application
+# Compile main application (all source directories)
 echo "Compiling main application sources..."
-javac -d build -cp "$CLASSPATH" src/main/java/com/electrosparkles/presetpony/*.java
+javac -d build -cp "$CLASSPATH" \
+  src/main/java/com/electrosparkles/presetpony/*.java \
+  src/main/java/com/electrosparkles/presetpony/ui/*.java \
+  src/main/java/com/electrosparkles/presetpony/ui/shared/*.java \
+  src/main/java/com/electrosparkles/presetpony/ui/tabs/*.java \
+  src/main/java/com/electrosparkles/presetpony/ui/components/*.java
 if [ $? -ne 0 ]; then
     echo ""
     echo "ERROR: Compilation failed!"
@@ -44,6 +49,6 @@ echo "To run tests:"
 echo "  java -cp build com.electrosparkles.presetpony.MustangTestSuite"
 echo ""
 echo "To run command-line diagnostic:"
-echo "  java -cp build:$CLASSPATH com.electrosparkles.presetpony.Main"
+echo "  java -cp build:\$CLASSPATH com.electrosparkles.presetpony.Main"
 echo "========================================"
 echo ""

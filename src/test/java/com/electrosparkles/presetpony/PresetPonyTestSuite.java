@@ -3,6 +3,7 @@ package com.electrosparkles.presetpony;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 
 /**
@@ -43,6 +44,24 @@ public class PresetPonyTestSuite {
         exporterKnobCountAndEncodingForEveryEffectModel();
         exporterAmpUnknownByteDefault();
         exporterDepthContextDependentOnNoiseGate();
+        randomiseSlotUntouchedWhenModelAndSettingsKept();
+        randomiseSameModelNewKnobsWhenOnlyModelKept();
+        randomiseNewModelNewKnobsWhenNothingKept();
+        randomiseEmptyIsValidOutcomeOverManyTrials();
+        randomiseDisabledKnobsStayZero();
+        randomiseNoiseGateFollowsGateExceptCustom();
+        randomiseStudioPreampSkipsSagBias();
+        randomisePairedCabFollowsNewAmpDefault();
+        randomiseKeepFlagsRejectsWrongArrayLength();
+        randomiseUsbGainNeverChanges();
+        pedalboardSaveLoadRoundTrip();
+        pedalboardSlugifyAndCollisionHandling();
+        pedalboardMruEvictionAtCapacity();
+        pedalboardLoadMovesToFrontOfMru();
+        pedalboardDeleteRemovesFromDiskAndMru();
+        pedalboardRejectsWrongFormatAndMalformedJson();
+        pedalboardRejectsWrongEffectCount();
+        pedalboardPeekDoesNotTouchMru();
 
         TestAssertions.summarizeAndExit();
     }
@@ -918,5 +937,308 @@ public class PresetPonyTestSuite {
         }
 
         throw new AssertionError("Could not find ControlIndex " + controlIndex + " in exported XML");
+    }
+
+    // ---- RandomiseEngine (Toybox tab) ----
+
+    private static EffectSettings sampleEffect(int slot, EffectModel model) {
+        return new EffectSettings(slot, model, 10, 20, 30, 40, 50, 60, true);
+    }
+
+    private static CurrentPreset sampleCurrentPreset() {
+        AmpSettings amp = new AmpSettings(AmpModel.FENDER_57_DELUXE,
+                100, 101, 102, 103, 104, 105, 106, 107,
+                0x80, 108, 109, 2, 3, CabinetModel.FENDER_57_DELUXE, 1, 0, 110);
+        EffectSettings[] effects = new EffectSettings[]{
+                sampleEffect(0, EffectModel.OVERDRIVE),
+                sampleEffect(1, EffectModel.SINE_CHORUS),
+                sampleEffect(2, EffectModel.MONO_DELAY),
+                sampleEffect(3, EffectModel.SMALL_HALL_REVERB),
+        };
+        return new CurrentPreset(5, "Sample", amp, effects, java.util.List.of());
+    }
+
+    private static void randomiseSlotUntouchedWhenModelAndSettingsKept() {
+        TestAssertions.section("RandomiseEngine - keep effect + keep settings leaves slot untouched");
+        EffectSettings original = sampleEffect(0, EffectModel.OVERDRIVE);
+        EffectSettings result = RandomiseEngine.randomiseEffect(original, true, true, new java.util.Random(42));
+        TestAssertions.assertEquals(original, result, "Slot returned exactly as-is (same record)");
+    }
+
+    private static void randomiseSameModelNewKnobsWhenOnlyModelKept() {
+        TestAssertions.section("RandomiseEngine - keep effect, don't keep settings: same model, new knobs");
+        EffectSettings original = sampleEffect(0, EffectModel.OVERDRIVE);
+        boolean anyKnobDiffered = false;
+        for (int trial = 0; trial < 25; trial++) {
+            EffectSettings result = RandomiseEngine.randomiseEffect(original, true, false, new java.util.Random(trial));
+            TestAssertions.assertEquals(EffectModel.OVERDRIVE, result.model(), "Model unchanged, trial " + trial);
+            if (result.knob1() != original.knob1() || result.knob2() != original.knob2()) {
+                anyKnobDiffered = true;
+            }
+        }
+        TestAssertions.assertTrue(anyKnobDiffered, "At least one trial produced different knob values");
+    }
+
+    private static void randomiseNewModelNewKnobsWhenNothingKept() {
+        TestAssertions.section("RandomiseEngine - don't keep effect: new random model from the slot's own group");
+        EffectSettings original = sampleEffect(0, EffectModel.OVERDRIVE); // slot 0 -> dspSlotGroup 0
+        for (int trial = 0; trial < 50; trial++) {
+            EffectSettings result = RandomiseEngine.randomiseEffect(original, false, false, new java.util.Random(trial));
+            boolean validGroup = result.model() == EffectModel.EMPTY || result.model().dspSlotGroup == 0;
+            TestAssertions.assertTrue(validGroup, "Random model belongs to slot 0's group or is EMPTY, trial " + trial);
+            TestAssertions.assertTrue(result.model() != EffectModel.FUZZ_TOUCH_WAH,
+                    "Never picks a NOT_SUPPORTED_ON_MUSTANG_III_V2 model, trial " + trial);
+        }
+    }
+
+    private static void randomiseEmptyIsValidOutcomeOverManyTrials() {
+        TestAssertions.section("RandomiseEngine - EMPTY is reachable as a random outcome");
+        EffectSettings original = sampleEffect(1, EffectModel.SINE_CHORUS);
+        boolean sawEmpty = false;
+        for (int trial = 0; trial < 200 && !sawEmpty; trial++) {
+            EffectSettings result = RandomiseEngine.randomiseEffect(original, false, false, new java.util.Random(trial));
+            if (result.model() == EffectModel.EMPTY) sawEmpty = true;
+        }
+        TestAssertions.assertTrue(sawEmpty, "EMPTY appeared at least once across 200 trials");
+    }
+
+    private static void randomiseDisabledKnobsStayZero() {
+        TestAssertions.section("RandomiseEngine - disabled/unused knobs are left at 0");
+        // SIMPLE_COMP only uses knob1 (a dropdown); knobs 2-6 are KnobSpec.disabled().
+        for (int trial = 0; trial < 20; trial++) {
+            EffectSettings result = RandomiseEngine.randomiseEffect(
+                    sampleEffect(0, EffectModel.SIMPLE_COMP), true, false, new java.util.Random(trial));
+            TestAssertions.assertEquals(0, result.knob2(), "knob2 stays 0 for Simple Comp, trial " + trial);
+            TestAssertions.assertEquals(0, result.knob3(), "knob3 stays 0 for Simple Comp, trial " + trial);
+            TestAssertions.assertEquals(0, result.knob4(), "knob4 stays 0 for Simple Comp, trial " + trial);
+            TestAssertions.assertEquals(0, result.knob5(), "knob5 stays 0 for Simple Comp, trial " + trial);
+            TestAssertions.assertEquals(0, result.knob6(), "knob6 stays 0 for Simple Comp, trial " + trial);
+            TestAssertions.assertTrue(result.knob1() >= 0 && result.knob1() <= 3,
+                    "knob1 (Type dropdown, 0-3) in range, trial " + trial);
+        }
+    }
+
+    private static void randomiseNoiseGateFollowsGateExceptCustom() {
+        TestAssertions.section("RandomiseEngine - Threshold/Depth follow Noise Gate default unless Custom (5)");
+        AmpSettings base = sampleCurrentPreset().amp();
+        RandomiseEngine.KeepFlags keepEqOnly = new RandomiseEngine.KeepFlags(
+                true, true, false, true, false,
+                new boolean[]{true, true, true, true}, new boolean[]{true, true, true, true});
+        for (int trial = 0; trial < 100; trial++) {
+            AmpSettings result = RandomiseEngine.randomiseAmp(base, keepEqOnly, new java.util.Random(trial));
+            if (!AmpKnobScale.isCustomGate(result.noiseGate())) {
+                TestAssertions.assertEquals(AmpKnobScale.defaultThresholdForGate(result.noiseGate()), result.threshold(),
+                        "Threshold follows named gate default, trial " + trial);
+                TestAssertions.assertEquals(AmpKnobScale.defaultDepthForGate(result.noiseGate()), result.depth(),
+                        "Depth follows named gate default, trial " + trial);
+            } else {
+                TestAssertions.assertTrue(result.threshold() >= 0 && result.threshold() <= 9,
+                        "Threshold in 0-9 range at Custom gate, trial " + trial);
+            }
+        }
+    }
+
+    private static void randomiseStudioPreampSkipsSagBias() {
+        TestAssertions.section("RandomiseEngine - Studio Preamp leaves Sag/Bias untouched even when Amp Tuning is randomised");
+        AmpSettings base = new AmpSettings(AmpModel.STUDIO_PREAMP,
+                100, 101, 102, 103, 104, 105, 106, 107,
+                0x80, 108, 55, 2, 3, CabinetModel.OFF, 2, 0, 110); // sag=2, bias=55
+        RandomiseEngine.KeepFlags keepModelOnly = new RandomiseEngine.KeepFlags(
+                true, true, false, true, false,
+                new boolean[]{true, true, true, true}, new boolean[]{true, true, true, true});
+        for (int trial = 0; trial < 20; trial++) {
+            AmpSettings result = RandomiseEngine.randomiseAmp(base, keepModelOnly, new java.util.Random(trial));
+            TestAssertions.assertEquals(2, result.sag(), "Sag untouched for Studio Preamp, trial " + trial);
+            TestAssertions.assertEquals(55, result.bias(), "Bias untouched for Studio Preamp, trial " + trial);
+        }
+    }
+
+    private static void randomisePairedCabFollowsNewAmpDefault() {
+        TestAssertions.section("RandomiseEngine - Paired forces Cab to the new Amp's defaultCabinet()");
+        AmpSettings base = sampleCurrentPreset().amp();
+        RandomiseEngine.KeepFlags pairedAmpAndCab = new RandomiseEngine.KeepFlags(
+                false, true, true, false, true,
+                new boolean[]{true, true, true, true}, new boolean[]{true, true, true, true});
+        for (int trial = 0; trial < 30; trial++) {
+            AmpSettings result = RandomiseEngine.randomiseAmp(base, pairedAmpAndCab, new java.util.Random(trial));
+            TestAssertions.assertEquals(result.model().defaultCabinet(), result.cabinet(),
+                    "Cab matches new amp's default pairing, trial " + trial);
+        }
+    }
+
+    private static void randomiseKeepFlagsRejectsWrongArrayLength() {
+        TestAssertions.section("RandomiseEngine.KeepFlags - rejects wrong-length keep arrays");
+        TestAssertions.assertThrows(IllegalArgumentException.class, () ->
+                new RandomiseEngine.KeepFlags(false, false, false, false, false,
+                        new boolean[]{false, false, false}, new boolean[]{false, false, false, false}),
+                "3-length keepEffectModel array rejected");
+    }
+
+    private static void randomiseUsbGainNeverChanges() {
+        TestAssertions.section("RandomiseEngine - USB gain is never randomised, even with Amp Tuning not kept");
+        AmpSettings base = sampleCurrentPreset().amp(); // usbGain = 110
+        RandomiseEngine.KeepFlags nothingKept = RandomiseEngine.KeepFlags.none();
+        for (int trial = 0; trial < 20; trial++) {
+            AmpSettings result = RandomiseEngine.randomiseAmp(base, nothingKept, new java.util.Random(trial));
+            TestAssertions.assertEquals(base.usbGain(), result.usbGain(), "USB gain unchanged, trial " + trial);
+        }
+    }
+
+    // ---- PedalboardSetStore ----
+
+    private static Path newTempDir() throws IOException {
+        return Files.createTempDirectory("pbset-test-");
+    }
+
+    private static void deleteRecursively(Path dir) throws IOException {
+        if (!Files.exists(dir)) return;
+        try (var stream = Files.walk(dir)) {
+            stream.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.deleteIfExists(p);
+                } catch (IOException ignored) {
+                }
+            });
+        }
+    }
+
+    private static PedalboardSet samplePedalboardSet(String name) {
+        EffectSettings[] effects = new EffectSettings[]{
+                sampleEffect(0, EffectModel.OVERDRIVE),
+                sampleEffect(1, EffectModel.SINE_CHORUS),
+                sampleEffect(2, EffectModel.EMPTY),
+                sampleEffect(3, EffectModel.STEREO_TAPE_DELAY), // category 3 (Reverb slot) - model/category mismatch
+                                                                  // doesn't matter here, the store is agnostic to it
+        };
+        return PedalboardSet.capture(name, effects);
+    }
+
+    private static void pedalboardSaveLoadRoundTrip() throws IOException {
+        TestAssertions.section("PedalboardSetStore - save/load round-trip");
+        Path dir = newTempDir();
+        try {
+            PedalboardSet original = samplePedalboardSet("Ambient Lead");
+            Path file = PedalboardSetStore.save(dir, original);
+            TestAssertions.assertTrue(Files.exists(file), "file written to disk");
+            TestAssertions.assertTrue(file.getFileName().toString().endsWith(PedalboardSetStore.FILE_SUFFIX),
+                    "file name uses the .pbset.json suffix");
+
+            PedalboardSet loaded = PedalboardSetStore.load(file);
+            TestAssertions.assertEquals("Ambient Lead", loaded.name(), "name round-trips");
+            TestAssertions.assertEquals(EffectModel.OVERDRIVE, loaded.effects()[0].model(), "slot0 model round-trips");
+            TestAssertions.assertEquals(EffectModel.EMPTY, loaded.effects()[2].model(), "slot2 EMPTY round-trips");
+            TestAssertions.assertEquals(EffectModel.STEREO_TAPE_DELAY, loaded.effects()[3].model(), "slot3 model round-trips");
+            TestAssertions.assertEquals(10, loaded.effects()[0].knob1(), "knob values round-trip");
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    private static void pedalboardSlugifyAndCollisionHandling() throws IOException {
+        TestAssertions.section("PedalboardSetStore - slugify + filename collision handling");
+        TestAssertions.assertEquals("ambient-lead", PedalboardSetStore.slugify("Ambient Lead"), "basic slugify");
+        TestAssertions.assertEquals("crunch-rhythm", PedalboardSetStore.slugify("  Crunch!! Rhythm??  "),
+                "punctuation/whitespace collapsed");
+        TestAssertions.assertEquals("set", PedalboardSetStore.slugify("!!!"), "all-punctuation name falls back to 'set'");
+
+        Path dir = newTempDir();
+        try {
+            Path first = PedalboardSetStore.save(dir, samplePedalboardSet("Same Name"));
+            Path second = PedalboardSetStore.save(dir, samplePedalboardSet("Same Name"));
+            TestAssertions.assertTrue(!first.equals(second), "second save with the same name gets a different file");
+            TestAssertions.assertTrue(second.getFileName().toString().contains("-2"),
+                    "collision suffix -2 applied: " + second.getFileName());
+            TestAssertions.assertEquals(2, PedalboardSetStore.list(dir).size(), "both files present in list()");
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    private static void pedalboardMruEvictionAtCapacity() throws IOException {
+        TestAssertions.section("PedalboardSetStore - MRU is a fixed-capacity ring (default 8), newest first");
+        Path dir = newTempDir();
+        try {
+            List<Path> saved = new java.util.ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                saved.add(PedalboardSetStore.save(dir, samplePedalboardSet("Set " + i)));
+            }
+            List<Path> recent = PedalboardSetStore.recent(dir);
+            TestAssertions.assertEquals(PedalboardSetStore.DEFAULT_MRU_CAPACITY, recent.size(),
+                    "capped at DEFAULT_MRU_CAPACITY even though 10 sets were saved");
+            TestAssertions.assertEquals(saved.get(9), recent.get(0), "most recently saved is at the front");
+            TestAssertions.assertTrue(!recent.contains(saved.get(0)),
+                    "oldest (Set 0) was evicted off the back of the ring");
+            TestAssertions.assertTrue(!recent.contains(saved.get(1)),
+                    "second-oldest (Set 1) was also evicted (10 saves, capacity 8)");
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    private static void pedalboardLoadMovesToFrontOfMru() throws IOException {
+        TestAssertions.section("PedalboardSetStore - loading an older set re-promotes it to the front of the MRU");
+        Path dir = newTempDir();
+        try {
+            Path a = PedalboardSetStore.save(dir, samplePedalboardSet("A"));
+            Path b = PedalboardSetStore.save(dir, samplePedalboardSet("B"));
+            TestAssertions.assertEquals(b, PedalboardSetStore.recent(dir).get(0), "B is newest right after saving");
+
+            PedalboardSetStore.load(a);
+            TestAssertions.assertEquals(a, PedalboardSetStore.recent(dir).get(0), "loading A promotes it back to the front");
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    private static void pedalboardDeleteRemovesFromDiskAndMru() throws IOException {
+        TestAssertions.section("PedalboardSetStore - delete() removes the file and its MRU entry");
+        Path dir = newTempDir();
+        try {
+            Path a = PedalboardSetStore.save(dir, samplePedalboardSet("A"));
+            TestAssertions.assertTrue(PedalboardSetStore.recent(dir).contains(a), "A is in the MRU list before delete");
+
+            PedalboardSetStore.delete(a);
+            TestAssertions.assertTrue(!Files.exists(a), "file removed from disk");
+            TestAssertions.assertTrue(!PedalboardSetStore.recent(dir).contains(a), "A no longer in the MRU list");
+            TestAssertions.assertEquals(0, PedalboardSetStore.list(dir).size(), "no set files left in the directory");
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    private static void pedalboardRejectsWrongFormatAndMalformedJson() {
+        TestAssertions.section("PedalboardSetStore.fromJson - rejects wrong-format and malformed input");
+        TestAssertions.assertThrows(IllegalArgumentException.class,
+                () -> PedalboardSetStore.fromJson("not json at all"), "garbage (non-JSON) content rejected");
+        TestAssertions.assertThrows(IllegalArgumentException.class,
+                () -> PedalboardSetStore.fromJson("{\"format\": \"some-other-format\"}"),
+                "wrong 'format' value rejected");
+        TestAssertions.assertThrows(IllegalArgumentException.class,
+                () -> PedalboardSetStore.fromJson("[1,2,3]"), "top-level array (not object) rejected");
+    }
+
+    private static void pedalboardRejectsWrongEffectCount() {
+        TestAssertions.section("PedalboardSetStore.fromJson - rejects an 'effects' array that isn't exactly 4 entries");
+        String threeEffects = "{\"format\":\"" + PedalboardSetStore.FORMAT + "\",\"name\":\"X\","
+                + "\"created\":\"2026-01-01T00:00:00Z\",\"modified\":\"2026-01-01T00:00:00Z\","
+                + "\"effects\":[{\"slot\":0,\"model\":\"EMPTY\",\"enabled\":false,\"knobs\":[0,0,0,0,0,0]}]}";
+        TestAssertions.assertThrows(IllegalArgumentException.class,
+                () -> PedalboardSetStore.fromJson(threeEffects), "only 1 of 4 required effect entries present");
+    }
+
+    private static void pedalboardPeekDoesNotTouchMru() throws IOException {
+        TestAssertions.section("PedalboardSetStore.peek() - reads a set without promoting it in the MRU ring");
+        Path dir = newTempDir();
+        try {
+            Path a = PedalboardSetStore.save(dir, samplePedalboardSet("A"));
+            Path b = PedalboardSetStore.save(dir, samplePedalboardSet("B"));
+            TestAssertions.assertEquals(b, PedalboardSetStore.recent(dir).get(0), "B is newest right after saving");
+
+            PedalboardSet peeked = PedalboardSetStore.peek(a);
+            TestAssertions.assertEquals("A", peeked.name(), "peek() still returns the right content");
+            TestAssertions.assertEquals(b, PedalboardSetStore.recent(dir).get(0), "B is still newest - peek() didn't promote A");
+        } finally {
+            deleteRecursively(dir);
+        }
     }
 }

@@ -16,9 +16,9 @@ if not exist build mkdir build
 REM Set classpath with all library JARs
 set CLASSPATH=lib\hid4java-0.8.0.jar;lib\jna-5.19.1.jar;lib\jna-platform-5.19.1.jar
 
-REM Find all .java files in src/main/java/com/electrosparkles/presetpony/
+REM Find all .java files in src/main/java (including all subdirectories)
 echo Compiling main application sources...
-javac -d build -cp %CLASSPATH% src\main\java\com\electrosparkles\presetpony\*.java
+javac -d build -cp %CLASSPATH% src\main\java\com\electrosparkles\presetpony\*.java src\main\java\com\electrosparkles\presetpony\ui\*.java src\main\java\com\electrosparkles\presetpony\ui\shared\*.java src\main\java\com\electrosparkles\presetpony\ui\tabs\*.java src\main\java\com\electrosparkles\presetpony\ui\components\*.java
 if errorlevel 1 (
     echo.
     echo ERROR: Compilation failed!
