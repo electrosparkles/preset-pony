@@ -1,6 +1,7 @@
 package com.electrosparkles.presetpony.ui.tabs;
 
 import com.electrosparkles.presetpony.*;
+import com.electrosparkles.presetpony.AppVersion;
 import com.electrosparkles.presetpony.ui.ControlStateDelegate;
 import com.electrosparkles.presetpony.ui.StatusUpdater;
 import com.electrosparkles.presetpony.ui.TabPanel;
@@ -46,7 +47,7 @@ public class AboutTabPanel extends TabPanel {
         JLabel titleLabel = new JLabel("Preset Pony");
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 22f));
 
-        JLabel versionLabel = new JLabel("Unofficial companion app for Fender Mustang amplifiers");
+        JLabel versionLabel = new JLabel("v" + AppVersion.get() + "  —  Unofficial companion app for Fender Mustang amplifiers");
 
         String bodyHtml = "<html><body style='width:300px; font-family:sans-serif;'>"
                 + "<p>Preset Pony connects to Fender Mustang III V2 amplifiers over USB to "

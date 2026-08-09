@@ -16,6 +16,11 @@ echo PresetPony - JAR Build (Windows)
 echo ==================================================
 echo.
 
+REM Read version from version.properties
+for /f "tokens=2 delims==" %%v in ('findstr "app.version" version.properties') do set APP_VERSION=%%v
+echo Version: %APP_VERSION%
+echo.
+
 echo [1/5] Cleaning previous jar build...
 if exist "%CLASSES_DIR%" rmdir /s /q "%CLASSES_DIR%"
 if exist "%JAR_DIR%" rmdir /s /q "%JAR_DIR%"
@@ -30,11 +35,13 @@ if errorlevel 1 (
 )
 echo   Compilation successful
 
-echo [3/5] Copying resources...
+echo [3/5] Copying resources and writing filtered app-version.properties...
 if exist "src\main\resources" (
     xcopy "src\main\resources" "%CLASSES_DIR%" /s /e /y >nul
-    echo   Resources copied
 )
+if not exist "%CLASSES_DIR%\config" mkdir "%CLASSES_DIR%\config"
+echo app.version=%APP_VERSION%> "%CLASSES_DIR%\config\app-version.properties"
+echo   Resources copied
 
 echo [4/5] Creating manifest...
 set MANIFEST_FILE=%BUILD_DIR%\MANIFEST.MF
@@ -43,7 +50,7 @@ set MANIFEST_FILE=%BUILD_DIR%\MANIFEST.MF
     echo Main-Class: %MAIN_CLASS%
     echo Class-Path: ../../lib/hid4java-0.8.0.jar ../../lib/jna-5.19.1.jar ../../lib/jna-platform-5.19.1.jar
     echo Implementation-Title: Mustang III Companion App
-    echo Implementation-Version: 1.0.0
+    echo Implementation-Version: %APP_VERSION%
     echo Implementation-Vendor: Mustang Project
 ) > "%MANIFEST_FILE%"
 echo   Main-Class: %MAIN_CLASS%

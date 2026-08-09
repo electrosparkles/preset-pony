@@ -12,6 +12,12 @@ echo.
 
 REM Check if build directory exists, create if not
 if not exist build mkdir build
+if not exist build\config mkdir build\config
+
+REM Read version from version.properties and write filtered app-version.properties
+for /f "tokens=2 delims==" %%v in ('findstr "app.version" version.properties') do set APP_VERSION=%%v
+echo app.version=%APP_VERSION%> build\config\app-version.properties
+echo Version: %APP_VERSION%
 
 REM Set classpath with all library JARs
 set CLASSPATH=lib\hid4java-0.8.0.jar;lib\jna-5.19.1.jar;lib\jna-platform-5.19.1.jar

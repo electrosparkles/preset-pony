@@ -23,6 +23,11 @@ echo PresetPony - EXE Build via jpackage (Windows)
 echo ==================================================
 echo.
 
+REM Read version from version.properties
+for /f "tokens=2 delims==" %%v in ('findstr "app.version" version.properties') do set APP_VERSION=%%v
+echo Version: %APP_VERSION%
+echo.
+
 where jpackage >nul 2>&1
 if errorlevel 1 (
     echo ERROR: jpackage not found on PATH. Requires JDK 17+.
@@ -42,10 +47,12 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [3/6] Copying resources (icons, config)...
+echo [3/6] Copying resources (icons, config) and writing filtered app-version.properties...
 if exist "%RESOURCES_DIR%" (
     xcopy "%RESOURCES_DIR%" "%CLASSES_DIR%" /s /e /y >nul
 )
+if not exist "%CLASSES_DIR%\config" mkdir "%CLASSES_DIR%\config"
+echo app.version=%APP_VERSION%> "%CLASSES_DIR%\config\app-version.properties"
 
 echo [4/6] Creating manifest and jar...
 REM Class-Path entries are relative to the jar's own folder, since jpackage
@@ -77,7 +84,7 @@ jpackage ^
     --main-jar "%JAR_NAME%" ^
     --main-class "%MAIN_CLASS%" ^
     --icon "%ICON_FILE%" ^
-    --app-version "1.0.0" ^
+    --app-version "%APP_VERSION%" ^
     --vendor "Mustang Project" ^
     --java-options "--enable-native-access=ALL-UNNAMED"
 if errorlevel 1 (

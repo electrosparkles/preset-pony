@@ -16,7 +16,7 @@ echo ""
 echo "Launching PresetPony GUI..."
 echo ""
 
-java --enable-native-access=ALL-UNNAMED -cp "$CLASSPATH" com.electrosparkles.presetpony.MustangUiShell
+java --enable-native-access=ALL-UNNAMED -cp "$CLASSPATH" com.electrosparkles.presetpony.PresetPony
 
 if [ $? -ne 0 ]; then
     echo ""
