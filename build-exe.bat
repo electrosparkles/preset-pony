@@ -36,7 +36,7 @@ mkdir "%CLASSES_DIR%"
 mkdir "%INPUT_DIR%"
 
 echo [2/6] Compiling Java sources...
-javac -d "%CLASSES_DIR%" -encoding UTF-8 -cp "%CLASSPATH%" %SOURCE_DIR%\com\electrosparkles\presetpony\*.java
+javac -d "%CLASSES_DIR%" -encoding UTF-8 -cp "%CLASSPATH%" %SOURCE_DIR%\com\electrosparkles\presetpony\*.java %SOURCE_DIR%\com\electrosparkles\presetpony\ui\*.java %SOURCE_DIR%\com\electrosparkles\presetpony\ui\shared\*.java %SOURCE_DIR%\com\electrosparkles\presetpony\ui\tabs\*.java %SOURCE_DIR%\com\electrosparkles\presetpony\ui\components\*.java
 if errorlevel 1 (
     echo Error: Compilation failed
     exit /b 1

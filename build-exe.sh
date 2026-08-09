@@ -52,7 +52,12 @@ rm -rf "$DIST_DIR/$APP_NAME"
 mkdir -p "$CLASSES_DIR" "$INPUT_DIR"
 
 echo "[2/7] Compiling Java sources..."
-javac -d "$CLASSES_DIR" -encoding UTF-8 -cp "$CLASSPATH" "$SOURCE_DIR"/com/electrosparkles/presetpony/*.java
+javac -d "$CLASSES_DIR" -encoding UTF-8 -cp "$CLASSPATH" \
+  "$SOURCE_DIR"/com/electrosparkles/presetpony/*.java \
+  "$SOURCE_DIR"/com/electrosparkles/presetpony/ui/*.java \
+  "$SOURCE_DIR"/com/electrosparkles/presetpony/ui/shared/*.java \
+  "$SOURCE_DIR"/com/electrosparkles/presetpony/ui/tabs/*.java \
+  "$SOURCE_DIR"/com/electrosparkles/presetpony/ui/components/*.java
 
 echo "[3/7] Copying resources (icons, config)..."
 if [ -d "$RESOURCES_DIR" ]; then
