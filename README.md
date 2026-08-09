@@ -25,6 +25,8 @@ Preset Pony connects over USB to Fender Mustang III V2 amplifiers, giving you th
   - Export all presets to CSV
 - **Effect editing**: configure distortion, modulation, delay, and reverb effect chains
 - **FX Loop support**: pre/post-preamp effect placement toggle
+- **Randomise amp and effects**: explore what's possible through a roll of the dice
+- **Effect management**: Save effects separately to the full preset, creating a set of pedalboards
 
 ---
 

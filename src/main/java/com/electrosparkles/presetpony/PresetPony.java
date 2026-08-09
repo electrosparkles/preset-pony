@@ -81,6 +81,15 @@ public class PresetPony extends JFrame {
         pedalboardTab = new PedalboardSetsTabPanel(statusUpdater, controlDelegate);
         aboutTab = new AboutTabPanel(statusUpdater, controlDelegate);
 
+        // Wire preset-changed callback for all tabs
+        PresetChangedCallback presetChangedCallback = preset -> updateAllTabs(preset);
+        ampTab.setPresetChangedCallback(presetChangedCallback);
+        effectsTab.setPresetChangedCallback(presetChangedCallback);
+        presetsTab.setPresetChangedCallback(presetChangedCallback);
+        toyboxTab.setPresetChangedCallback(presetChangedCallback);
+        pedalboardTab.setPresetChangedCallback(presetChangedCallback);
+        aboutTab.setPresetChangedCallback(presetChangedCallback);
+
         tabs.addTab("Amp", ampTab.getPanel());
         tabs.addTab("Effects", effectsTab.getPanel());
         tabs.addTab("Presets", presetsTab.getPanel());
@@ -114,7 +123,7 @@ public class PresetPony extends JFrame {
     private void connectInBackground() {
         if (buttonPanel != null && !buttonPanel.getConnectButton().isEnabled()) return;
         if (buttonPanel != null) buttonPanel.getConnectButton().setEnabled(false);
-        
+
         statusUpdater.updateStatus("Connecting...");
         new SwingWorker<CurrentPreset, Void>() {
             String error = null;

@@ -110,6 +110,7 @@ public class PresetsTabPanel extends TabPanel {
                 try {
                     current = get();
                     updateStatus("Connected");
+                    notifyPresetChanged(current);
                 } catch (Exception ex) {
                     updateStatus("Error: " + ex.getMessage());
                 } finally {
@@ -153,6 +154,7 @@ public class PresetsTabPanel extends TabPanel {
                 try {
                     current = get();
                     updateStatus("Saved to slot " + slot);
+                    notifyPresetChanged(current);
                 } catch (Exception ex) {
                     updateStatus("Error: " + ex.getMessage());
                 } finally {
