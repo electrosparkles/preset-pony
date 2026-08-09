@@ -70,7 +70,8 @@ Download the jar file, and run by using the terminal, or command line with `java
 
 ## Building
 
-Build scripts need `javac` on the system PATH.  The following library files need downloading from Maven Central (for now) and placing in the lib folder:
+The application has been built with JDKs on Windows and Linux. It is a maven project, with POM present, but this is optional.  
+Build scripts are also present for systems without maven, but need `javac` on the system PATH.  If not using maven then the following library files need downloading from Maven Central (for now) and placing in the lib folder:
 ```
 hidJava-0.8.0.jar
 jna-5.19.1.jar
