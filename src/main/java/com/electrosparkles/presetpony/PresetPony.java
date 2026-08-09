@@ -25,6 +25,7 @@ import javax.imageio.ImageIO;
 public class PresetPony extends JFrame {
     private MustangConnection conn;
     private CurrentPreset current;
+    private boolean isConnected = false;
 
     private StatusPanel statusPanel;
     private ButtonPanel buttonPanel;
@@ -58,12 +59,7 @@ public class PresetPony extends JFrame {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                if (conn != null) {
-                    try {
-                        conn.close();
-                    } catch (Exception ignored) {
-                    }
-                }
+                disconnect();
             }
         });
         setLayout(new BorderLayout(12, 12));
@@ -95,7 +91,7 @@ public class PresetPony extends JFrame {
 
         // Button panel (bottom)
         buttonPanel = new ButtonPanel();
-        buttonPanel.setOnConnect(e -> connectInBackground());
+        buttonPanel.setOnConnect(e -> onConnectButtonClicked());
         buttonPanel.setOnRefresh(e -> refreshInBackground());
         buttonPanel.setOnExport(e -> exportPresetToFuse());
         buttonPanel.setOnImport(e -> importPresetFromFuse());
@@ -107,16 +103,18 @@ public class PresetPony extends JFrame {
         setVisible(true);
     }
 
+    private void onConnectButtonClicked() {
+        if (isConnected) {
+            disconnect();
+        } else {
+            connectInBackground();
+        }
+    }
+
     private void connectInBackground() {
         if (buttonPanel != null && !buttonPanel.getConnectButton().isEnabled()) return;
         if (buttonPanel != null) buttonPanel.getConnectButton().setEnabled(false);
-        if (conn != null) {
-            try {
-                conn.close();
-            } catch (Exception ignored) {
-            }
-            conn = null;
-        }
+        
         statusUpdater.updateStatus("Connecting...");
         new SwingWorker<CurrentPreset, Void>() {
             String error = null;
@@ -138,19 +136,42 @@ public class PresetPony extends JFrame {
                     CurrentPreset preset = get();
                     if (preset == null) {
                         statusUpdater.updateStatus("Error: " + error);
+                        if (buttonPanel != null) buttonPanel.getConnectButton().setEnabled(true);
                         return;
                     }
                     current = preset;
+                    isConnected = true;
                     statusUpdater.updateStatus("Connected");
+                    updateConnectionUI();
                     setSlidersEnabled(true);
                     updateAllTabs(current);
                 } catch (Exception e) {
                     statusUpdater.updateStatus("Error: " + e.getMessage());
-                } finally {
                     if (buttonPanel != null) buttonPanel.getConnectButton().setEnabled(true);
                 }
             }
         }.execute();
+    }
+
+    private void disconnect() {
+        if (conn != null) {
+            try {
+                conn.close();
+            } catch (Exception ignored) {
+            }
+            conn = null;
+        }
+        isConnected = false;
+        statusUpdater.updateStatus("Disconnected");
+        updateConnectionUI();
+        setSlidersEnabled(false);
+    }
+
+    private void updateConnectionUI() {
+        if (buttonPanel != null) {
+            buttonPanel.getConnectButton().setText(isConnected ? "Disconnect" : "Connect");
+            buttonPanel.getConnectButton().setEnabled(true);
+        }
     }
 
     private void refreshInBackground() {

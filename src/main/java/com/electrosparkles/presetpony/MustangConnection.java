@@ -336,5 +336,9 @@ public class MustangConnection implements AutoCloseable {
     public void close() {
         device.close();
         hidServices.stop();
+        try {
+            Thread.sleep(500); // Give scanner thread time to exit cleanly
+        } catch (InterruptedException ignored) {
+        }
     }
 }
