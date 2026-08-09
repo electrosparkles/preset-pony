@@ -1,6 +1,7 @@
 # Build output
 /build/
 /dist/
+/target/
 
 # Local scratch/diagnostic files
 compile-errors.txt
