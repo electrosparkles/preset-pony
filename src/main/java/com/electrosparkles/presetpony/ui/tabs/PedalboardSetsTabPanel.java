@@ -6,6 +6,7 @@ import com.electrosparkles.presetpony.ui.StatusUpdater;
 import com.electrosparkles.presetpony.ui.TabPanel;
 import com.electrosparkles.presetpony.ui.components.PedalboardTableModel;
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -20,12 +21,14 @@ public class PedalboardSetsTabPanel extends TabPanel {
 
     private static final int MRU_DISPLAY_LIMIT = 6;
     private Path pedalboardDir;
+    private Path currentlyLoadedSet;  // Track which set is currently loaded
     private final Map<Path, PedalboardSet> pedalboardCache = new HashMap<>();
     private final List<Path> pedalboardRows = new ArrayList<>();
     private final PedalboardTableModel tableModel;
     private final JTable pedalboardTable;
     private final JPanel pedalboardMruChips;
     private final JLabel pedalboardFolderLabel;
+    private final JButton saveButton;  // Only enabled when a set is loaded
 
     public PedalboardSetsTabPanel(StatusUpdater statusUpdater, ControlStateDelegate controlDelegate) {
         super(statusUpdater, controlDelegate);
@@ -33,6 +36,8 @@ public class PedalboardSetsTabPanel extends TabPanel {
         pedalboardTable = new JTable(tableModel);
         pedalboardMruChips = new JPanel();
         pedalboardFolderLabel = new JLabel();
+        saveButton = new JButton("Save");
+        currentlyLoadedSet = null;
         panel = buildPanel();
     }
 
@@ -90,12 +95,15 @@ public class PedalboardSetsTabPanel extends TabPanel {
         top.add(mruScroll);
         panel.add(top, BorderLayout.NORTH);
 
-        // Table
+        // Table with light horizontal grid lines only
         pedalboardTable.setFillsViewportHeight(true);
         pedalboardTable.setRowSelectionAllowed(true);
         pedalboardTable.setColumnSelectionAllowed(false);
         pedalboardTable.setAutoCreateRowSorter(false);
-        javax.swing.table.DefaultTableCellRenderer modifiedRenderer = new javax.swing.table.DefaultTableCellRenderer();
+        pedalboardTable.setShowVerticalLines(false);
+        pedalboardTable.setGridColor(new Color(230, 230, 230));
+        
+        DefaultTableCellRenderer modifiedRenderer = new DefaultTableCellRenderer();
         modifiedRenderer.setHorizontalAlignment(SwingConstants.RIGHT);
         var modifiedColumn = pedalboardTable.getColumnModel().getColumn(1);
         modifiedColumn.setCellRenderer(modifiedRenderer);
@@ -111,7 +119,10 @@ public class PedalboardSetsTabPanel extends TabPanel {
         JButton loadButton = new JButton("Load selected");
         JButton renameButton = new JButton("Rename selected...");
         JButton deleteButton = new JButton("Delete selected");
+        
+        saveButton.setEnabled(false);  // Only enable when a set is loaded
         saveAsButton.addActionListener(e -> onSavePedalboardSetAs());
+        saveButton.addActionListener(e -> onSavePedalboardSet());
         loadButton.addActionListener(e -> {
             Path selected = selectedPedalboardPath();
             if (selected != null) applyPedalboardSet(selected);
@@ -121,6 +132,7 @@ public class PedalboardSetsTabPanel extends TabPanel {
 
         JPanel buttonsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
         buttonsRow.add(saveAsButton);
+        buttonsRow.add(saveButton);
         buttonsRow.add(loadButton);
         buttonsRow.add(renameButton);
         buttonsRow.add(deleteButton);
@@ -219,7 +231,27 @@ public class PedalboardSetsTabPanel extends TabPanel {
         if (name == null || name.isBlank()) return;
 
         try {
-            PedalboardSetStore.save(pedalboardDir, PedalboardSet.capture(name.trim(), current.effects()));
+            Path saved = PedalboardSetStore.save(pedalboardDir, PedalboardSet.capture(name.trim(), current.effects()));
+            currentlyLoadedSet = saved;
+            saveButton.setEnabled(true);
+            refreshPedalboardSetsUi();
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(panel, "Could not save set:\n" + ex.getMessage(),
+                    "Save failed", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void onSavePedalboardSet() {
+        if (currentlyLoadedSet == null || current == null) {
+            JOptionPane.showMessageDialog(panel, "Load a pedalboard set first, then modify and save.",
+                    "Pedalboard Sets", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
+            PedalboardSetStore.overwrite(currentlyLoadedSet, PedalboardSet.capture(
+                    pedalboardCache.get(currentlyLoadedSet).name(), current.effects()));
+            updateStatus("Saved to " + currentlyLoadedSet.getFileName());
             refreshPedalboardSetsUi();
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(panel, "Could not save set:\n" + ex.getMessage(),
@@ -253,8 +285,12 @@ public class PedalboardSetsTabPanel extends TabPanel {
                     PedalboardSet set = get();
                     current = new CurrentPreset(current.presetNumber(), current.name(), current.amp(),
                             set.effects(), current.presetNames());
+                    currentlyLoadedSet = file;
+                    saveButton.setEnabled(true);
                     updateStatus(conn == null ? "Preview only (not connected) - change not sent" : "Connected");
                 } catch (Exception ex) {
+                    currentlyLoadedSet = null;
+                    saveButton.setEnabled(false);
                     updateStatus("Error: " + ex.getMessage());
                     JOptionPane.showMessageDialog(panel, "Couldn't load that set:\n" + ex.getMessage(),
                             "Pedalboard Sets", JOptionPane.ERROR_MESSAGE);
@@ -279,7 +315,10 @@ public class PedalboardSetsTabPanel extends TabPanel {
 
         try {
             PedalboardSetStore.delete(selected);
-            PedalboardSetStore.save(pedalboardDir, existing.withName(newName.trim()));
+            Path renamed = PedalboardSetStore.save(pedalboardDir, existing.withName(newName.trim()));
+            if (currentlyLoadedSet != null && currentlyLoadedSet.equals(selected)) {
+                currentlyLoadedSet = renamed;
+            }
             refreshPedalboardSetsUi();
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(panel, "Could not rename set:\n" + ex.getMessage(),
@@ -299,6 +338,10 @@ public class PedalboardSetsTabPanel extends TabPanel {
 
         try {
             PedalboardSetStore.delete(selected);
+            if (currentlyLoadedSet != null && currentlyLoadedSet.equals(selected)) {
+                currentlyLoadedSet = null;
+                saveButton.setEnabled(false);
+            }
             refreshPedalboardSetsUi();
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(panel, "Could not delete set:\n" + ex.getMessage(),

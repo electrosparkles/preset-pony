@@ -1,7 +1,10 @@
 # Build output
 /build/
 /dist/
+<<<<<<< HEAD
 /lib/
+=======
+>>>>>>> pony-express/master
 /target/
 
 # Local scratch/diagnostic files
