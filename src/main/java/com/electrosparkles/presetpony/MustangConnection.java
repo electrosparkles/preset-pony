@@ -44,11 +44,17 @@ public class MustangConnection implements AutoCloseable {
             throw new IllegalStateException("Mustang not found (VID 0x1ED8 / PID 0x0016). Is it plugged in?");
         }
 
-        device.open();
-        MustangConnection conn = new MustangConnection(hidServices, device);
-        conn.sendAndDiscardAck(PacketCodec.encodeInit0());
-        conn.sendAndDiscardAck(PacketCodec.encodeInit1());
-        return conn;
+        try {
+            device.open();
+            MustangConnection conn = new MustangConnection(hidServices, device);
+            conn.sendAndDiscardAck(PacketCodec.encodeInit0());
+            conn.sendAndDiscardAck(PacketCodec.encodeInit1());
+            return conn;
+        } catch (RuntimeException | Error e) {
+            device.close();
+            hidServices.stop();
+            throw e;
+        }
     }
 
     /**
@@ -339,6 +345,7 @@ public class MustangConnection implements AutoCloseable {
         try {
             Thread.sleep(500); // Give scanner thread time to exit cleanly
         } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
         }
     }
 }
