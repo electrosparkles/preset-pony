@@ -1,6 +1,8 @@
 # Build output
 /build/
 /dist/
+/lib/
+/target/
 
 # Local scratch/diagnostic files
 compile-errors.txt
@@ -17,3 +19,6 @@ Thumbs.db
 
 # Logs
 *.log
+target
+/src/main/resources/config/amp-facts.properties
+/dependency-reduced-pom.xml
