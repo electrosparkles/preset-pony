@@ -299,6 +299,7 @@ public class PresetPony extends JFrame {
 
     public static void main(String[] args) {
         EffectKnobScaleFacts.applyDefault();
+        AmpFacts.loadDefault();
         SwingUtilities.invokeLater(() -> new PresetPony().setVisible(true));
     }
 }

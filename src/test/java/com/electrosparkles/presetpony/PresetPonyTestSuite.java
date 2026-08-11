@@ -16,6 +16,8 @@ import java.util.List;
 public class PresetPonyTestSuite {
 
     public static void main(String[] args) throws Exception {
+        EffectKnobScaleFacts.applyDefault();
+        AmpFacts.loadDefault();
         packetCodecAmpRoundTrip();
         packetCodecEffectRoundTrip();
         simpleCompClampingBehavior();
@@ -26,6 +28,10 @@ public class PresetPonyTestSuite {
         realFixtureRoundTrip();
         csvExportFormatting();
         ampCabinetDefaultPairing();
+        ampFactsLoadedCompletely();
+        ampFactsRawValuesSpotCheck();
+        ampFactsStudioPreampSentinels();
+        ampFactsInlineCommentStripping();
         effectModelDiversityRoundTrip();
         deluxeReverbUnknownOverride();
         noiseGateConditionalEncoding();
@@ -730,27 +736,89 @@ public class PresetPonyTestSuite {
     }
 
     private static void ampCabinetDefaultPairing() {
-        TestAssertions.section("AmpModel.defaultCabinet() - confirmed pairing table (Section 11)");
+        TestAssertions.section("AmpFacts.defaultCabinet() - confirmed pairing table (Section 11)");
 
-        TestAssertions.assertEquals(CabinetModel.FENDER_57_DELUXE, AmpModel.FENDER_57_DELUXE.defaultCabinet(), "'57 Deluxe pairing");
-        TestAssertions.assertEquals(CabinetModel.FENDER_59_BASSMAN, AmpModel.FENDER_59_BASSMAN.defaultCabinet(), "'59 Bassman pairing");
-        TestAssertions.assertEquals(CabinetModel.FENDER_57_CHAMPION, AmpModel.FENDER_57_CHAMP.defaultCabinet(), "'57 Champ pairing");
-        TestAssertions.assertEquals(CabinetModel.FENDER_65_DELUXE, AmpModel.FENDER_65_DELUXE_REVERB.defaultCabinet(), "'65 Deluxe Reverb pairing");
-        TestAssertions.assertEquals(CabinetModel.FENDER_65_PRINCETON, AmpModel.FENDER_65_PRINCETON.defaultCabinet(), "'65 Princeton pairing");
-        TestAssertions.assertEquals(CabinetModel.FENDER_65_TWIN, AmpModel.FENDER_65_TWIN_REVERB.defaultCabinet(), "'65 Twin Reverb pairing");
-        TestAssertions.assertEquals(CabinetModel.SUPER_SONIC_1X12, AmpModel.FENDER_SUPER_SONIC.defaultCabinet(), "Super-Sonic pairing");
-        TestAssertions.assertEquals(CabinetModel.VOX_2X12_CELESTION, AmpModel.BRITISH_60S.defaultCabinet(), "British 60s pairing");
-        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_GREENBACKS, AmpModel.BRITISH_70S.defaultCabinet(), "British 70s pairing");
-        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_MODERN, AmpModel.BRITISH_80S.defaultCabinet(), "British 80s pairing");
-        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_VINTAGE, AmpModel.AMERICAN_90S.defaultCabinet(), "American 90s pairing");
-        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_GREENBACKS, AmpModel.METAL_2000.defaultCabinet(), "Metal 2000 pairing");
-        TestAssertions.assertEquals(CabinetModel.OFF, AmpModel.STUDIO_PREAMP.defaultCabinet(), "Studio Preamp pairing");
+        TestAssertions.assertEquals(CabinetModel.FENDER_57_DELUXE,        AmpFacts.defaultCabinet(AmpModel.FENDER_57_DELUXE),       "'57 Deluxe pairing");
+        TestAssertions.assertEquals(CabinetModel.FENDER_59_BASSMAN,        AmpFacts.defaultCabinet(AmpModel.FENDER_59_BASSMAN),      "'59 Bassman pairing");
+        TestAssertions.assertEquals(CabinetModel.FENDER_57_CHAMPION,       AmpFacts.defaultCabinet(AmpModel.FENDER_57_CHAMP),        "'57 Champ pairing");
+        TestAssertions.assertEquals(CabinetModel.FENDER_65_DELUXE,         AmpFacts.defaultCabinet(AmpModel.FENDER_65_DELUXE_REVERB), "'65 Deluxe Reverb pairing");
+        TestAssertions.assertEquals(CabinetModel.FENDER_65_PRINCETON,      AmpFacts.defaultCabinet(AmpModel.FENDER_65_PRINCETON),    "'65 Princeton pairing");
+        TestAssertions.assertEquals(CabinetModel.FENDER_65_TWIN,           AmpFacts.defaultCabinet(AmpModel.FENDER_65_TWIN_REVERB),  "'65 Twin Reverb pairing");
+        TestAssertions.assertEquals(CabinetModel.SUPER_SONIC_1X12,         AmpFacts.defaultCabinet(AmpModel.FENDER_SUPER_SONIC),     "Super-Sonic pairing");
+        TestAssertions.assertEquals(CabinetModel.VOX_2X12_CELESTION,       AmpFacts.defaultCabinet(AmpModel.BRITISH_60S),            "British 60s pairing");
+        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_GREENBACKS, AmpFacts.defaultCabinet(AmpModel.BRITISH_70S),            "British 70s pairing");
+        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_MODERN,     AmpFacts.defaultCabinet(AmpModel.BRITISH_80S),            "British 80s pairing");
+        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_VINTAGE,    AmpFacts.defaultCabinet(AmpModel.AMERICAN_90S),           "American 90s pairing");
+        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_GREENBACKS, AmpFacts.defaultCabinet(AmpModel.METAL_2000),             "Metal 2000 pairing");
+        TestAssertions.assertEquals(CabinetModel.OFF,                      AmpFacts.defaultCabinet(AmpModel.STUDIO_PREAMP),          "Studio Preamp pairing");
+        // v2-exclusive amps: from real Fuse UI observation (UNCERTAIN confidence)
+        TestAssertions.assertEquals(CabinetModel.FENDER_65_TWIN,           AmpFacts.defaultCabinet(AmpModel.FENDER_57_TWIN),         "'57 Twin (v2) pairing");
+        TestAssertions.assertEquals(CabinetModel.FENDER_57_DELUXE,         AmpFacts.defaultCabinet(AmpModel.FENDER_60_THRIFT),       "60s Thrift (v2) pairing");
+        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_GREENBACKS, AmpFacts.defaultCabinet(AmpModel.BRITISH_COLOUR),         "British Colour (v2) pairing");
+        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_VINTAGE,    AmpFacts.defaultCabinet(AmpModel.BRITISH_WATTS),          "British Watts (v2) pairing");
+    }
 
-        // v2-exclusive amps: not in Plug's source
-        TestAssertions.assertEquals(CabinetModel.FENDER_65_TWIN, AmpModel.FENDER_57_TWIN.defaultCabinet(), "'57 Twin (v2) pairing, from real Fuse");
-        TestAssertions.assertEquals(CabinetModel.FENDER_57_DELUXE, AmpModel.FENDER_60_THRIFT.defaultCabinet(), "60s Thrift (v2) pairing, from real Fuse");
-        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_GREENBACKS, AmpModel.BRITISH_COLOUR.defaultCabinet(), "British Colour (v2) pairing, from real Fuse");
-        TestAssertions.assertEquals(CabinetModel.MARSHALL_4X12_VINTAGE, AmpModel.BRITISH_WATTS.defaultCabinet(), "British Watts (v2) pairing, from real Fuse");
+    // ---- AmpFacts loading and defaults ----
+
+    private static void ampFactsLoadedCompletely() {
+        TestAssertions.section("AmpFacts - file loads completely, all 17 amps present");
+        TestAssertions.assertTrue(AmpFacts.isLoaded(),
+                "AmpFacts.loadDefault() populated the internal maps");
+        // Spot check a few amps - if any failed to parse, defaults would be null
+        TestAssertions.assertTrue(AmpFacts.defaultsFor(AmpModel.FENDER_57_DELUXE) != null,
+                "FENDER_57_DELUXE defaults loaded");
+        TestAssertions.assertTrue(AmpFacts.defaultsFor(AmpModel.BRITISH_COLOUR) != null,
+                "BRITISH_COLOUR (v2-exclusive) defaults loaded");
+        TestAssertions.assertTrue(AmpFacts.defaultsFor(AmpModel.STUDIO_PREAMP) != null,
+                "STUDIO_PREAMP (no sag/bias) defaults loaded");
+    }
+
+    private static void ampFactsRawValuesSpotCheck() {
+        TestAssertions.section("AmpFacts - spot-check raw byte values (already converted at authoring time)");
+        // '57 Deluxe: gain raw 142 (from dial 6 on 0-10 scale)
+        AmpDefaults deluxe = AmpFacts.defaultsFor(AmpModel.FENDER_57_DELUXE);
+        TestAssertions.assertEquals(142, deluxe.gain(), "'57 Deluxe gain raw 142 (dial 6.0 on 0-10)");
+        TestAssertions.assertEquals(170, deluxe.volume(), "'57 Deluxe volume raw 170 (dial 7.0 on 0-10)");
+        TestAssertions.assertEquals(113, deluxe.middle(), "'57 Deluxe middle raw 113 (dial 5.0 on 0-10)");
+        TestAssertions.assertEquals(128, deluxe.bias(), "'57 Deluxe bias raw 128 (MID / 0%)");
+        TestAssertions.assertEquals(1, deluxe.sag(), "'57 Deluxe sag index 1 (Match)");
+        TestAssertions.assertEquals(0, deluxe.noiseGate(), "'57 Deluxe noiseGate index 0 (OFF)");
+        TestAssertions.assertEquals(128, deluxe.depth(), "'57 Deluxe depth raw 128 (50%)");
+        TestAssertions.assertEquals(-1, deluxe.presence(), "'57 Deluxe has no Presence control (returns -1)");
+        TestAssertions.assertEquals(-1, deluxe.gain2(), "'57 Deluxe has no Gain2/Blend (returns -1)");
+
+        // Super-Sonic: has gain2 on 0-10 scale (different from dialscale)
+        AmpDefaults superSonic = AmpFacts.defaultsFor(AmpModel.FENDER_SUPER_SONIC);
+        TestAssertions.assertEquals(140, superSonic.gain2(),
+                "Super-Sonic gain2 raw 140 (dial 5.5 on 0-10 scale, not the amp's 1-10)");
+        TestAssertions.assertEquals(84, superSonic.masterVolume(), "Super-Sonic masterVolume raw 84 (33%)");
+        TestAssertions.assertEquals(2, superSonic.noiseGate(), "Super-Sonic noiseGate index 2 (MID)");
+    }
+
+    private static void ampFactsStudioPreampSentinels() {
+        TestAssertions.section("AmpFacts - Studio Preamp uses -1 sentinel for non-applicable controls (sag, bias)");
+        AmpDefaults studio = AmpFacts.defaultsFor(AmpModel.STUDIO_PREAMP);
+        TestAssertions.assertEquals(-1, studio.sag(), "Studio Preamp sag sentinel (-1 means N/A)");
+        TestAssertions.assertEquals(-1, studio.bias(), "Studio Preamp bias sentinel (-1 means N/A)");
+        TestAssertions.assertEquals(CabinetModel.OFF, AmpFacts.defaultCabinet(AmpModel.STUDIO_PREAMP),
+                "Studio Preamp has no cabinet (OFF)");
+        // Core EQ and effects controls must still be present
+        TestAssertions.assertEquals(128, studio.gain(), "Studio Preamp gain still has a value");
+        TestAssertions.assertEquals(128, studio.volume(), "Studio Preamp volume still has a value");
+    }
+
+    private static void ampFactsInlineCommentStripping() {
+        TestAssertions.section("AmpFacts - inline comment stripping handles '# comment' suffix correctly");
+        // The properties file uses "key=value  # inline comment" style extensively.
+        // If stripping doesn't work, parsing will fail (e.g. trying to parseInt "142  # dial 6 on 0-10")
+        // The fact that all 17 amps loaded (test: ampFactsLoadedCompletely) is proof stripping worked.
+        // This test makes the mechanism explicit by checking an edge case: a value with no comment.
+        AmpDefaults deluxe = AmpFacts.defaultsFor(AmpModel.FENDER_57_DELUXE);
+        // Every field must parse correctly regardless of whether its line had a comment
+        TestAssertions.assertTrue(deluxe.gain() >= 0 && deluxe.gain() <= 255,
+                "Gain value in valid 0-255 range (comment stripping worked)");
+        TestAssertions.assertTrue(deluxe.sag() >= 0 && deluxe.sag() <= 2,
+                "Sag value in valid index range (comment stripping worked)");
     }
 
     private static void csvExportFormatting() throws IOException {

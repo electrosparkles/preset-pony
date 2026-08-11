@@ -60,8 +60,13 @@ public enum AmpModel {
      * doc Section 11) - Plug's own source - EXCEPT Studio Preamp:
      * which actually defaults to CabinetModel.OFF (no cabinet
      * simulation, which fits its "clean, no modeling" nature). The 4
-     * v2-exclusive amps come from directly observing real Fuse's UI
+     * v2-exclusive amps come from directly observing real Fuse's UI.
+     *
+     * @deprecated Use {@link AmpFacts#defaultCabinet(AmpModel)} instead, which
+     * reads from amp-facts.properties - the authoritative data source. This
+     * method remains for backwards compatibility and reference documentation.
      */
+    @Deprecated
     public CabinetModel defaultCabinet() {
         return switch (this) {
             case FENDER_57_DELUXE -> CabinetModel.FENDER_57_DELUXE;

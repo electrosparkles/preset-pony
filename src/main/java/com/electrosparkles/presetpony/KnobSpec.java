@@ -68,6 +68,6 @@ public record KnobSpec(String label, int max, KnobControlType type, String[] dro
 
     /** e.g. "+3.5 st" for Pitch Shifter's Pitch knob. Only valid when hasDisplayScale(). */
     public String formatDisplayValue(int raw) {
-        return String.format("%+.1f%s", toDisplayValueTruncated(raw), displayUnit);
+        return String.format("%+.1f %s", toDisplayValueTruncated(raw), displayUnit);
     }
 }

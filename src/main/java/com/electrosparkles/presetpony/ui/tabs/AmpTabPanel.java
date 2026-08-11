@@ -174,8 +174,18 @@ public class AmpTabPanel extends TabPanel {
             refreshPresenceLabel();
             refreshGain2Display();
             refreshSagBiasEnabled();
-            CabinetModel defaultCab = (model != null) ? model.defaultCabinet() : null;
+
+            // Apply factory defaults for the new amp model before anything else fires.
+            // Done inside applyingProgrammatically so slider listeners don't each
+            // trigger individual writes mid-application.
+            if (model != null) {
+                applyDefaultsToSliders(model);
+            }
+
+            CabinetModel defaultCab = (model != null) ? AmpFacts.defaultCabinet(model) : null;
             if (defaultCab != null && cabinetCombo.getSelectedItem() != defaultCab) {
+                // Setting the cabinet will trigger the cabinet combo listener, which
+                // fires the write - sliders already have defaults applied above.
                 cabinetCombo.setSelectedItem(defaultCab);
                 return;
             }
@@ -209,6 +219,53 @@ public class AmpTabPanel extends TabPanel {
         };
         thresholdSlider.addChangeListener(onThresholdDepthChanged);
         depthSlider.addChangeListener(onThresholdDepthChanged);
+    }
+
+    /**
+     * Applies AmpFacts defaults for the given model to all sliders/combos,
+     * suppressing listener writes via applyingProgrammatically.
+     * Fields absent from the properties file (returned as -1) are left untouched,
+     * preserving whatever value the sliders currently show.
+     */
+    private void applyDefaultsToSliders(AmpModel model) {
+        AmpDefaults d = AmpFacts.defaultsFor(model);
+        if (d == null) return; // file not loaded or incomplete entry - leave sliders as-is
+
+        applyingProgrammatically = true;
+        try {
+            gainSlider.setValue(d.gain());
+            volumeSlider.setValue(d.volume());
+            trebleSlider.setValue(d.treble());
+            middleSlider.setValue(d.middle());
+            bassSlider.setValue(d.bass());
+
+            if (d.presence() >= 0)     presenceSlider.setValue(d.presence());
+            if (d.gain2() >= 0)        gain2Slider.setValue(d.gain2());
+            if (d.masterVolume() >= 0) masterVolumeSlider.setValue(d.masterVolume());
+
+            // noiseGate: set gate index, then let AmpKnobScale supply threshold/depth defaults
+            // (same logic as the noiseGate combo listener)
+            int gate = d.noiseGate();
+            noiseGateCombo.setSelectedIndex(gate);
+            if (!AmpKnobScale.isCustomGate(gate)) {
+                thresholdSlider.setValue(AmpKnobScale.defaultThresholdForGate(gate));
+                depthSlider.setValue(AmpKnobScale.defaultDepthForGate(gate));
+            } else {
+                thresholdSlider.setValue(d.threshold());
+                depthSlider.setValue(d.depth());
+            }
+            refreshThresholdDepthEnabled();
+
+            if (d.sag() >= 0)  sagCombo.setSelectedIndex(d.sag());
+            if (d.bias() >= 0) biasSlider.setValue(d.bias());
+
+            if (d.brightness() >= 0) {
+                brightnessCheck.setSelected(d.brightness() != 0);
+            }
+        } finally {
+            applyingProgrammatically = false;
+        }
+        refreshGain2Display();
     }
 
     private void refreshThresholdDepthEnabled() {
