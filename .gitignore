@@ -22,3 +22,4 @@ Thumbs.db
 target
 /src/main/resources/config/amp-facts.properties
 /dependency-reduced-pom.xml
+PROJECT_REFERENCE.md

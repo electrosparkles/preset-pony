@@ -19,10 +19,14 @@ SOURCE_DIR="src/main/java"
 RESOURCES_DIR="src/main/resources"
 LIB_DIR="lib"
 APP_NAME="PresetPony"
-JAR_NAME="preset-pony.jar"
-MAIN_CLASS="com.electrosparkles.presetpony.MustangUiShell"
+JAR_NAME_BASE="preset-pony"
+MAIN_CLASS="com.electrosparkles.presetpony.PresetPony"
 ICON_FILE="src/main/resources/icons/icon_256.png"
 CLASSPATH="$LIB_DIR/hid4java-0.8.0.jar:$LIB_DIR/jna-5.19.1.jar:$LIB_DIR/jna-platform-5.19.1.jar"
+
+# Read version from version.properties
+APP_VERSION=$(head -1 version.properties | grep "app.version" | cut -d'=' -f2 | tr -d ' \r\n')
+JAR_NAME="$JAR_NAME_BASE-$APP_VERSION.jar"
 
 # Local (non-shared) scratch space for jlink's hard-linked runtime image
 LOCAL_ROOT="$(mktemp -d /tmp/presetpony-jpackage.XXXXXX)"
@@ -40,6 +44,7 @@ trap cleanup EXIT
 echo ""
 echo "PresetPony - Linux App Build via jpackage"
 echo "=================================================="
+echo "Version: $APP_VERSION"
 echo ""
 
 if ! command -v jpackage >/dev/null 2>&1; then
@@ -59,10 +64,12 @@ javac -d "$CLASSES_DIR" -encoding UTF-8 -cp "$CLASSPATH" \
   "$SOURCE_DIR"/com/electrosparkles/presetpony/ui/tabs/*.java \
   "$SOURCE_DIR"/com/electrosparkles/presetpony/ui/components/*.java
 
-echo "[3/7] Copying resources (icons, config)..."
+echo "[3/7] Copying resources (icons, config) and writing filtered app-version.properties..."
 if [ -d "$RESOURCES_DIR" ]; then
     cp -r "$RESOURCES_DIR"/. "$CLASSES_DIR/"
 fi
+mkdir -p "$CLASSES_DIR/config"
+echo "app.version=$APP_VERSION" > "$CLASSES_DIR/config/app-version.properties"
 
 echo "[4/7] Creating manifest and jar..."
 # Class-Path entries are relative to the jar's own folder, since jpackage
@@ -72,6 +79,9 @@ cat > "$MANIFEST_FILE" <<EOF
 Manifest-Version: 1.0
 Main-Class: $MAIN_CLASS
 Class-Path: hid4java-0.8.0.jar jna-5.19.1.jar jna-platform-5.19.1.jar
+Implementation-Title: Preset Pony
+Implementation-Version: $APP_VERSION
+Implementation-Vendor: Electrosparkles
 EOF
 
 ( cd "$CLASSES_DIR" && jar cmf "$MANIFEST_FILE" "$INPUT_DIR/$JAR_NAME" . )
@@ -88,13 +98,16 @@ jpackage \
     --main-jar "$JAR_NAME" \
     --main-class "$MAIN_CLASS" \
     --icon "$PROJECT_DIR/$ICON_FILE" \
-    --app-version "1.0.0" \
+    --app-version "$APP_VERSION" \
     --vendor "Mustang Project" \
     --java-options "--enable-native-access=ALL-UNNAMED"
 
 echo "[7/7] Copying finished app-image back into project dist/..."
 mkdir -p "$DIST_DIR"
 cp -rL "$LOCAL_DIST_DIR/$APP_NAME" "$DIST_DIR/"
+
+echo "[8/8] Creating zip archive with version in filename..."
+(cd "$DIST_DIR" && zip -r "$JAR_NAME_BASE-$APP_VERSION-linux.zip" "$APP_NAME" -q)
 
 APP_DIR="$PROJECT_DIR/$DIST_DIR/$APP_NAME"
 BIN_PATH="$APP_DIR/bin/$APP_NAME"
@@ -119,7 +132,9 @@ EOF
 echo ""
 echo "=================================================="
 echo "Build complete!"
-echo "Run it directly: $BIN_PATH"
+echo "App folder:  $DIST_DIR/$APP_NAME"
+echo "Run it:      $BIN_PATH"
+echo "Packaged:    $DIST_DIR/$JAR_NAME_BASE-$APP_VERSION-linux.zip"
 echo ""
 echo "To add it to your application menu:"
 echo "  cp \"$DESKTOP_FILE\" ~/.local/share/applications/"

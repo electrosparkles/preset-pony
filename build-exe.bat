@@ -92,10 +92,20 @@ if errorlevel 1 (
     exit /b 1
 )
 
+echo [7/7] Creating zip archive with version in filename...
+REM Use PowerShell to compress the app folder
+powershell -NoProfile -Command "Compress-Archive -Path '%DIST_DIR%\%APP_NAME%' -DestinationPath '%DIST_DIR%\PresetPony-%APP_VERSION%-windows.zip' -Force"
+if errorlevel 1 (
+    echo Error: zip creation failed
+    exit /b 1
+)
+
 echo.
 echo ==================================================
 echo Build complete!
-echo Run it: %DIST_DIR%\%APP_NAME%\%APP_NAME%.exe
+echo App folder:  %DIST_DIR%\%APP_NAME%
+echo Run it:      %DIST_DIR%\%APP_NAME%\%APP_NAME%.exe
+echo Packaged:    %DIST_DIR%\PresetPony-%APP_VERSION%-windows.zip
 echo.
 echo (Optional) To build a real installer instead of an app-image folder,
 echo install the WiX Toolset and re-run jpackage with --type exe or --type msi.
