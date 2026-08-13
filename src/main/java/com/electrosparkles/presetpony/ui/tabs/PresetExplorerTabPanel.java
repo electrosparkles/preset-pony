@@ -57,6 +57,7 @@ public class PresetExplorerTabPanel extends TabPanel {
     private final JLabel summaryLabel;
     private final JTable table;
     private final ExplorerTableModel tableModel;
+    private final JCheckBox bypassWarningsCheck;
 
     // ── State ─────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ public class PresetExplorerTabPanel extends TabPanel {
         summaryLabel = new JLabel(" ");
         tableModel   = new ExplorerTableModel(rows);
         table        = buildTable();
+        bypassWarningsCheck = new JCheckBox("Ignore model warnings");
         panel        = buildPanel();
     }
 
@@ -155,9 +157,18 @@ public class PresetExplorerTabPanel extends TabPanel {
         summaryLabel.setForeground(Color.GRAY);
         summaryLabel.setBorder(BorderFactory.createEmptyBorder(2, 2, 0, 2));
 
+        bypassWarningsCheck.setFont(bypassWarningsCheck.getFont().deriveFont(10f));
+        bypassWarningsCheck.setForeground(Color.GRAY);
+        bypassWarningsCheck.setBorder(BorderFactory.createEmptyBorder(2, 2, 4, 2));
+
         JPanel bar = new JPanel(new BorderLayout(2, 2));
         bar.add(detailLabel, BorderLayout.CENTER);
-        bar.add(summaryLabel, BorderLayout.SOUTH);
+        
+        JPanel south = new JPanel(new BorderLayout(2, 2));
+        south.add(bypassWarningsCheck, BorderLayout.NORTH);
+        south.add(summaryLabel, BorderLayout.SOUTH);
+        bar.add(south, BorderLayout.SOUTH);
+        
         return bar;
     }
 
@@ -316,6 +327,21 @@ public class PresetExplorerTabPanel extends TabPanel {
         summaryLabel.setText(sb.toString());
     }
 
+    // ── Helper methods ────────────────────────────────────────────────────────
+
+    private String extractProductId(String detail) {
+        // Extract ProductId from messages like: Unsupported ProductId="13" - this app only supports...
+        int start = detail.indexOf("ProductId=\"");
+        if (start >= 0) {
+            start += 11; // length of 'ProductId="'
+            int end = detail.indexOf('"', start);
+            if (end > start) {
+                return detail.substring(start, end);
+            }
+        }
+        return "unknown";
+    }
+
     // ── Row click ─────────────────────────────────────────────────────────────
 
     private void onRowClicked(ExplorerRow row) {
@@ -324,12 +350,45 @@ public class PresetExplorerTabPanel extends TabPanel {
                 return; // Unclickable — user reads the detail bar.
 
             case WARNING:
-                JOptionPane.showMessageDialog(panel,
-                        "<html><b>Cannot load this preset.</b><br><br>"
-                        + "It was created for a different Mustang model (ProductId mismatch).<br>"
-                        + "Loading it would likely produce incorrect amp and effect settings.<br><br>"
-                        + "<i>" + row.detail + "</i></html>",
-                        "Wrong model", JOptionPane.WARNING_MESSAGE);
+                // ProductId mismatch — check bypass flag.
+                if (!bypassWarningsCheck.isSelected()) {
+                    JOptionPane.showMessageDialog(panel,
+                            "<html><b>Cannot load this preset.</b><br><br>"
+                            + "It was created for a different Mustang model (ProductId mismatch).<br>"
+                            + "Loading it would likely produce incorrect amp and effect settings.<br><br>"
+                            + "Check \"Ignore model warnings\" below to override this check.<br><br>"
+                            + "<i>" + row.detail + "</i></html>",
+                            "Wrong model", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                // Bypass enabled — extract ProductId and show simplified warning, then attempt to load.
+                String productId = extractProductId(row.detail);
+                detailLabel.setText("Unsupported ProductId of '" + productId + "'. Unexpected results may occur.");
+                
+                ValidationResult bypassRecheck = PresetExplorerValidator.validateIgnoringWarnings(row.path);
+                if (bypassRecheck.status == ValidationStatus.INVALID) {
+                    int modelIdx = rows.indexOf(row);
+                    row.status     = bypassRecheck.status;
+                    row.detail     = bypassRecheck.detail;
+                    row.presetName = bypassRecheck.presetName;
+                    row.preset     = null;
+                    if (modelIdx >= 0) tableModel.fireTableRowsUpdated(modelIdx, modelIdx);
+                    detailLabel.setText(row.detail);
+                    JOptionPane.showMessageDialog(panel,
+                            "<html><b>Could not load preset.</b><br><br>"
+                            + "File validation failed (may have been corrupted or moved).<br><br>"
+                            + "<i>" + bypassRecheck.detail + "</i></html>",
+                            "Load failed", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                // Use the revalidated preset with warning bypassed.
+                if (bypassRecheck.preset != null && applyPresetCallback != null) {
+                    applyPresetCallback.accept(bypassRecheck.preset);
+                }
+                if (conn == null) {
+                    updateStatus("Loaded: " + row.path.getFileName()
+                            + " (warning bypassed - preview only; connect to send to amp)");
+                }
                 return;
 
             case VALID:

@@ -65,6 +65,27 @@ public final class FusePresetImporter {
         }
     }
 
+    public static CurrentPreset fromFileIgnoringProductId(Path path) throws IOException {
+        if (!Files.exists(path)) {
+            throw new IllegalArgumentException("File does not exist: " + path);
+        }
+        long size = Files.size(path);
+        if (size == 0) {
+            throw new IllegalArgumentException("File is empty: " + path);
+        }
+        if (size > MAX_FILE_SIZE_BYTES) {
+            throw new IllegalArgumentException("File is " + size + " bytes - too large to be a valid single .fuse "
+                    + "preset (expected a few KB). Refusing to parse. If this is a Fuse backup ZIP, extract an "
+                    + "individual preset file from Presets/ first.");
+        }
+        String xml = Files.readString(path, StandardCharsets.UTF_8);
+        try {
+            return fromXmlIgnoringProductId(xml);
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("Couldn't import " + path.getFileName() + ": " + e.getMessage(), e);
+        }
+    }
+
     public static CurrentPreset fromXml(String xml) {
         if (xml == null || xml.isBlank()) {
             throw new IllegalArgumentException("Empty file content");
@@ -93,6 +114,49 @@ public final class FusePresetImporter {
                     + "would be misinterpreted (amp/effect IDs differ between models).");
         }
 
+        Element amplifierEl = childElement(root, "Amplifier");
+        Element fxEl = childElement(root, "FX");
+        if (amplifierEl == null || fxEl == null) {
+            throw new IllegalArgumentException("Missing required <Amplifier> or <FX> section - not a complete preset file");
+        }
+
+        Element infoEl = firstDescendant(root, "Info");
+        String name = (infoEl != null) ? infoEl.getAttribute("name") : "";
+
+        AmpSettings amp = readAmp(amplifierEl, readUsbGain(root));
+        EffectSettings[] effects = new EffectSettings[4];
+        for (int i = 0; i < 4; i++) {
+            effects[i] = readFxCategory(fxEl, FX_TAGS[i], AMP_CATEGORY_SLOT_GROUP[i]);
+        }
+
+        // presetNumber=-1 and empty presetNames signal "not from a live amp slot" -
+        // this preset hasn't been assigned a slot yet (that only happens on save-to-slot).
+        return new CurrentPreset(-1, name, amp, effects, java.util.List.of());
+    }
+
+    public static CurrentPreset fromXmlIgnoringProductId(String xml) {
+        if (xml == null || xml.isBlank()) {
+            throw new IllegalArgumentException("Empty file content");
+        }
+        xml = stripBomAndLeadingWhitespace(xml);
+
+        Document doc;
+        try {
+            doc = parseSecurely(xml);
+        } catch (ParserConfigurationException | SAXException | IOException e) {
+            throw new IllegalArgumentException("Not valid XML: " + e.getMessage(), e);
+        }
+
+        Element root = doc.getDocumentElement();
+        if (root == null || !"Preset".equals(root.getTagName())) {
+            String actual = (root != null) ? root.getTagName() : "(none)";
+            throw new IllegalArgumentException("Not a Fuse preset file - root element is <" + actual
+                    + ">, expected <Preset>. (Metadata sidecars like AmpData/M2_NN.fuse and "
+                    + "SystemSettings.fuse are not tone presets - see fuse-preset-format.md Section 2.3/2.4.)");
+        }
+
+        // Skip ProductId validation when bypass is enabled.
+        // Still check for required Amplifier and FX sections.
         Element amplifierEl = childElement(root, "Amplifier");
         Element fxEl = childElement(root, "FX");
         if (amplifierEl == null || fxEl == null) {

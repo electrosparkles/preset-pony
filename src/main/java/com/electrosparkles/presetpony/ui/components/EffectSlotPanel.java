@@ -12,6 +12,7 @@ import java.util.function.Consumer;
  * Reusable effect slot editor (one of the 4 identical slots in Effects tab).
  * Encapsulates: model combo, On/Off checkbox, FX Loop checkbox, 6 knobs (slider/dropdown/toggle).
  */
+@SuppressWarnings("unchecked")
 public class EffectSlotPanel extends JPanel {
     private final int slotIndex;
     private final String slotName;

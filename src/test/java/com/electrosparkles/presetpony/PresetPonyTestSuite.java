@@ -13,6 +13,7 @@ import java.util.List;
  *
  * Fixture values (fixtures/*.fuse) taken from Fuse factory preset exports
  */
+@SuppressWarnings("deprecation")
 public class PresetPonyTestSuite {
 
     public static void main(String[] args) throws Exception {
@@ -72,6 +73,8 @@ public class PresetPonyTestSuite {
         presetExplorerValidStatus();
         presetExplorerInvalidStatus();
         presetExplorerWarningStatus();
+        presetExplorerValidateIgnoringWarningsOnWrongModel();
+        presetExplorerValidateIgnoringWarningsStillRejectsCorruptFiles();
 
         TestAssertions.summarizeAndExit();
     }
@@ -1472,5 +1475,49 @@ public class PresetPonyTestSuite {
             TestAssertions.assertTrue(!r.detail.contains("ProductId"),
                     "amp module parse failure detail does not mention ProductId");
         } finally { Files.deleteIfExists(badModule); }
+    }
+
+    private static void presetExplorerValidateIgnoringWarningsOnWrongModel() throws IOException {
+        TestAssertions.section("PresetExplorerValidator - validateIgnoringWarnings() bypasses ProductId check");
+
+        // Use a real fixture but swap ProductId to 1 to trigger WARNING.
+        Path realPreset = Path.of("src/test/resources/fixtures/M2_Basic Brit Colour.fuse");
+        String xml = Files.readString(realPreset);
+        String wrongProductId = xml.replace("ProductId=\"13\"", "ProductId=\"1\"");
+        Path wrongModel = tempFuse(wrongProductId);
+        try {
+            PresetExplorerValidator.ValidationResult normal = PresetExplorerValidator.validate(wrongModel);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.WARNING, normal.status,
+                    "normal validate() returns WARNING on ProductId mismatch");
+            TestAssertions.assertTrue(normal.preset == null, "WARNING result has null preset");
+
+            PresetExplorerValidator.ValidationResult bypassed = PresetExplorerValidator.validateIgnoringWarnings(wrongModel);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.VALID, bypassed.status,
+                    "validateIgnoringWarnings() returns VALID despite ProductId mismatch");
+            TestAssertions.assertTrue(bypassed.preset != null, "bypassed result has a non-null CurrentPreset");
+            TestAssertions.assertEquals(AmpModel.BRITISH_COLOUR, bypassed.preset.amp().model(),
+                    "bypassed preset has correct amp model (Basic Brit Colour)");
+        } finally { Files.deleteIfExists(wrongModel); }
+    }
+
+    private static void presetExplorerValidateIgnoringWarningsStillRejectsCorruptFiles() throws IOException {
+        TestAssertions.section("PresetExplorerValidator - validateIgnoringWarnings() still rejects structurally invalid files");
+
+        // Bad XML structure (missing required Amplifier/FX) -> INVALID even with bypass.
+        Path missingFx = tempFuse("<Preset ProductId=\"1\"></Preset>");
+        try {
+            PresetExplorerValidator.ValidationResult r = PresetExplorerValidator.validateIgnoringWarnings(missingFx);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.INVALID, r.status,
+                    "validateIgnoringWarnings() still rejects structurally invalid files");
+            TestAssertions.assertTrue(!r.detail.isEmpty(), "error detail provided");
+        } finally { Files.deleteIfExists(missingFx); }
+
+        // Garbage (non-XML) -> INVALID even with bypass.
+        Path garbage = tempFuse("not xml at all");
+        try {
+            PresetExplorerValidator.ValidationResult r = PresetExplorerValidator.validateIgnoringWarnings(garbage);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.INVALID, r.status,
+                    "validateIgnoringWarnings() rejects non-XML content");
+        } finally { Files.deleteIfExists(garbage); }
     }
 }

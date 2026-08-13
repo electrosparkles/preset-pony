@@ -85,4 +85,21 @@ public final class PresetExplorerValidator {
             return ValidationResult.invalid("IO error: " + ex.getMessage());
         }
     }
+
+    /**
+     * Attempts to parse a single file via {@link FusePresetImporter},
+     * skipping ProductId validation (used when bypass-warnings is enabled).
+     * Returns a {@link ValidationResult} with status and detail populated.
+     * Safe to call from a background thread.
+     */
+    public static ValidationResult validateIgnoringWarnings(Path path) {
+        try {
+            CurrentPreset preset = FusePresetImporter.fromFileIgnoringProductId(path);
+            return ValidationResult.valid(preset);
+        } catch (IllegalArgumentException ex) {
+            return ValidationResult.invalid(ex.getMessage() != null ? ex.getMessage() : ex.toString());
+        } catch (IOException ex) {
+            return ValidationResult.invalid("IO error: " + ex.getMessage());
+        }
+    }
 }
