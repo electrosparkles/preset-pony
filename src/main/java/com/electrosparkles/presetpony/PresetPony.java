@@ -33,6 +33,7 @@ public class PresetPony extends JFrame {
     private AmpTabPanel ampTab;
     private EffectsTabPanel effectsTab;
     private PresetsTabPanel presetsTab;
+    private PresetExplorerTabPanel presetExplorerTab;
     private ToyboxTabPanel toyboxTab;
     private PedalboardSetsTabPanel pedalboardTab;
     private AboutTabPanel aboutTab;
@@ -49,6 +50,7 @@ public class PresetPony extends JFrame {
         if (ampTab != null) ampTab.setConnectionState(conn, enabled);
         if (effectsTab != null) effectsTab.setConnectionState(conn, enabled);
         if (presetsTab != null) presetsTab.setConnectionState(conn, enabled);
+        if (presetExplorerTab != null) presetExplorerTab.setConnectionState(conn, enabled);
         if (toyboxTab != null) toyboxTab.setConnectionState(conn, enabled);
         if (pedalboardTab != null) pedalboardTab.setConnectionState(conn, enabled);
     };
@@ -77,6 +79,7 @@ public class PresetPony extends JFrame {
         ampTab = new AmpTabPanel(statusUpdater, controlDelegate);
         effectsTab = new EffectsTabPanel(statusUpdater, controlDelegate);
         presetsTab = new PresetsTabPanel(statusUpdater, controlDelegate);
+        presetExplorerTab = new PresetExplorerTabPanel(statusUpdater, controlDelegate);
         toyboxTab = new ToyboxTabPanel(statusUpdater, controlDelegate);
         pedalboardTab = new PedalboardSetsTabPanel(statusUpdater, controlDelegate);
         aboutTab = new AboutTabPanel(statusUpdater, controlDelegate);
@@ -86,6 +89,35 @@ public class PresetPony extends JFrame {
         ampTab.setPresetChangedCallback(presetChangedCallback);
         effectsTab.setPresetChangedCallback(presetChangedCallback);
         presetsTab.setPresetChangedCallback(presetChangedCallback);
+        presetExplorerTab.setPresetChangedCallback(presetChangedCallback);
+        presetExplorerTab.setApplyPresetCallback(preset -> {
+            current = preset;
+            setSlidersEnabled(true);
+            updateAllTabs(preset);
+            if (conn != null) {
+                statusUpdater.updateStatus("Applying preset\u2026");
+                new SwingWorker<Void, Void>() {
+                    @Override
+                    protected Void doInBackground() {
+                        conn.writeAmpSettings(preset.amp());
+                        EffectSettings[] effects = preset.effects();
+                        for (int slot = 0; slot < effects.length; slot++) {
+                            conn.writeEffectSettings(slot, effects[slot]);
+                        }
+                        return null;
+                    }
+                    @Override
+                    protected void done() {
+                        try {
+                            get();
+                            statusUpdater.updateStatus("Connected");
+                        } catch (Exception ex) {
+                            statusUpdater.updateStatus("Error applying preset: " + ex.getMessage());
+                        }
+                    }
+                }.execute();
+            }
+        });
         toyboxTab.setPresetChangedCallback(presetChangedCallback);
         pedalboardTab.setPresetChangedCallback(presetChangedCallback);
         aboutTab.setPresetChangedCallback(presetChangedCallback);
@@ -93,6 +125,7 @@ public class PresetPony extends JFrame {
         tabs.addTab("Amp", ampTab.getPanel());
         tabs.addTab("Effects", effectsTab.getPanel());
         tabs.addTab("Presets", presetsTab.getPanel());
+        tabs.addTab("Preset Explorer", presetExplorerTab.getPanel());
         tabs.addTab("Toybox", toyboxTab.getPanel());
         tabs.addTab("Pedalboard Sets", pedalboardTab.getPanel());
         tabs.addTab("About", aboutTab.getPanel());
@@ -217,6 +250,7 @@ public class PresetPony extends JFrame {
         ampTab.refresh(preset);
         effectsTab.refresh(preset);
         presetsTab.refresh(preset);
+        presetExplorerTab.refresh(preset);
         toyboxTab.refresh(preset);
         pedalboardTab.refresh(preset);
     }

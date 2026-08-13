@@ -50,6 +50,11 @@ public class ToyboxTabPanel extends TabPanel {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
+        JLabel hintLabel = new JLabel("<html>Randomise your amp, cab, EQ, and effects. Check anything you want to keep, then hit Randomise. Applied live if connected. Adjust amp volume as needed before touching master volume</html>");
+        hintLabel.setFont(hintLabel.getFont().deriveFont(10f));
+        hintLabel.setForeground(Color.GRAY);
+        hintLabel.setBorder(BorderFactory.createEmptyBorder(0, 2, 6, 2));
+
         JPanel keepPanel = new JPanel();
         keepPanel.setLayout(new BoxLayout(keepPanel, BoxLayout.Y_AXIS));
         keepPanel.setBorder(BorderFactory.createTitledBorder("Keep current"));
@@ -81,7 +86,10 @@ public class ToyboxTabPanel extends TabPanel {
             row.add(settingsCheck);
             keepPanel.add(row);
         }
-        panel.add(keepPanel, BorderLayout.NORTH);
+        JPanel northPanel = new JPanel(new BorderLayout());
+        northPanel.add(hintLabel, BorderLayout.NORTH);
+        northPanel.add(keepPanel, BorderLayout.CENTER);
+        panel.add(northPanel, BorderLayout.NORTH);
 
         toyboxDumpArea.setEditable(false);
         toyboxDumpArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));

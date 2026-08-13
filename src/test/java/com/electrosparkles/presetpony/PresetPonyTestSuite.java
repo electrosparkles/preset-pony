@@ -68,6 +68,10 @@ public class PresetPonyTestSuite {
         pedalboardRejectsWrongFormatAndMalformedJson();
         pedalboardRejectsWrongEffectCount();
         pedalboardPeekDoesNotTouchMru();
+        presetExplorerDiscovery();
+        presetExplorerValidStatus();
+        presetExplorerInvalidStatus();
+        presetExplorerWarningStatus();
 
         TestAssertions.summarizeAndExit();
     }
@@ -1308,5 +1312,165 @@ public class PresetPonyTestSuite {
         } finally {
             deleteRecursively(dir);
         }
+    }
+
+    // ---- PresetExplorerValidator ----
+
+    /** Writes {@code content} to a uniquely-named temp .fuse file; caller must delete it. */
+    private static Path tempFuse(String content) throws IOException {
+        Path p = Files.createTempFile("explorer-test-", ".fuse");
+        Files.writeString(p, content);
+        return p;
+    }
+
+    private static void presetExplorerDiscovery() throws IOException {
+        TestAssertions.section("PresetExplorerValidator - discoverFuseFiles() filtering and ordering");
+
+        // Empty directory: must return an empty list without throwing.
+        Path emptyDir = Files.createTempDirectory("explorer-empty-");
+        try {
+            TestAssertions.assertEquals(0, PresetExplorerValidator.discoverFuseFiles(emptyDir).size(),
+                    "empty directory returns empty list");
+        } finally { deleteRecursively(emptyDir); }
+
+        // Directory with only non-.fuse files: returns empty list.
+        Path noFuseDir = Files.createTempDirectory("explorer-nofuse-");
+        try {
+            Files.createFile(noFuseDir.resolve("settings.xml"));
+            Files.createFile(noFuseDir.resolve("readme.txt"));
+            TestAssertions.assertEquals(0, PresetExplorerValidator.discoverFuseFiles(noFuseDir).size(),
+                    "directory with no .fuse files returns empty list");
+        } finally { deleteRecursively(noFuseDir); }
+
+        // Mixed directory: only .fuse files (case-insensitive) returned, sorted alphabetically.
+        Path mixedDir = Files.createTempDirectory("explorer-mixed-");
+        try {
+            Files.createFile(mixedDir.resolve("ignore.xml"));
+            Files.createFile(mixedDir.resolve("ignore.txt"));
+            Files.createFile(mixedDir.resolve("Zeta.fuse"));
+            Files.createFile(mixedDir.resolve("alpha.fuse"));
+            Files.createFile(mixedDir.resolve("BETA.FUSE"));   // uppercase extension: must be included
+            Files.createFile(mixedDir.resolve("gamma.fuse"));
+
+            List<Path> found = PresetExplorerValidator.discoverFuseFiles(mixedDir);
+
+            TestAssertions.assertEquals(4, found.size(), "exactly 4 .fuse files found (non-.fuse excluded)");
+            TestAssertions.assertEquals("alpha.fuse",  found.get(0).getFileName().toString(), "sorted 1st: alpha");
+            TestAssertions.assertEquals("BETA.FUSE",   found.get(1).getFileName().toString(), "sorted 2nd: BETA (case-insensitive 'beta')");
+            TestAssertions.assertEquals("gamma.fuse",  found.get(2).getFileName().toString(), "sorted 3rd: gamma");
+            TestAssertions.assertEquals("Zeta.fuse",   found.get(3).getFileName().toString(), "sorted 4th: Zeta (case-insensitive 'zeta')");
+        } finally { deleteRecursively(mixedDir); }
+    }
+
+    private static void presetExplorerValidStatus() throws IOException {
+        TestAssertions.section("PresetExplorerValidator - VALID status on good .fuse files");
+
+        Path farBeyond = Path.of("src/test/resources/fixtures/M2_Far Beyond Driven.fuse");
+        PresetExplorerValidator.ValidationResult r1 = PresetExplorerValidator.validate(farBeyond);
+        TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.VALID, r1.status,
+                "real fixture Far Beyond Driven validates as VALID");
+        TestAssertions.assertTrue(r1.preset != null, "VALID result has a non-null CurrentPreset");
+        TestAssertions.assertEquals("", r1.detail, "VALID result has empty detail string");
+        TestAssertions.assertEquals("Far Beyond Driven", r1.presetName,
+                "presetName extracted correctly from Far Beyond Driven");
+
+        Path britColour = Path.of("src/test/resources/fixtures/M2_Basic Brit Colour.fuse");
+        PresetExplorerValidator.ValidationResult r2 = PresetExplorerValidator.validate(britColour);
+        TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.VALID, r2.status,
+                "real fixture Basic Brit Colour validates as VALID");
+        TestAssertions.assertEquals("Basic Brit Colour", r2.presetName,
+                "presetName extracted correctly from Basic Brit Colour");
+    }
+
+    private static void presetExplorerInvalidStatus() throws IOException {
+        TestAssertions.section("PresetExplorerValidator - INVALID status on bad/missing/oversized files");
+
+        // Missing file -> INVALID (not a thrown exception from validate()).
+        Path missing = Path.of("does-not-exist-" + System.nanoTime() + ".fuse");
+        PresetExplorerValidator.ValidationResult rMissing = PresetExplorerValidator.validate(missing);
+        TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.INVALID, rMissing.status,
+                "missing file returns INVALID (not an exception)");
+        TestAssertions.assertTrue(!rMissing.detail.isBlank(), "missing file detail is non-empty");
+        TestAssertions.assertTrue(rMissing.preset == null, "INVALID result has null preset");
+
+        // Empty file -> INVALID.
+        Path emptyFile = Files.createTempFile("explorer-empty-", ".fuse");
+        try {
+            PresetExplorerValidator.ValidationResult r = PresetExplorerValidator.validate(emptyFile);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.INVALID, r.status,
+                    "empty file returns INVALID");
+        } finally { Files.deleteIfExists(emptyFile); }
+
+        // File over MAX_FILE_SIZE_BYTES -> INVALID.
+        Path oversized = Files.createTempFile("explorer-oversized-", ".fuse");
+        try {
+            Files.write(oversized, new byte[(int) FusePresetImporter.MAX_FILE_SIZE_BYTES + 1000]);
+            PresetExplorerValidator.ValidationResult r = PresetExplorerValidator.validate(oversized);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.INVALID, r.status,
+                    "oversized file returns INVALID");
+        } finally { Files.deleteIfExists(oversized); }
+
+        // Garbage (non-XML) content -> INVALID.
+        Path garbage = tempFuse("this is not xml at all!!");
+        try {
+            PresetExplorerValidator.ValidationResult r = PresetExplorerValidator.validate(garbage);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.INVALID, r.status,
+                    "garbage (non-XML) content returns INVALID");
+        } finally { Files.deleteIfExists(garbage); }
+
+        // Wrong root element -> INVALID (not WARNING - not a ProductId issue).
+        Path wrongRoot = tempFuse("<Root></Root>");
+        try {
+            PresetExplorerValidator.ValidationResult r = PresetExplorerValidator.validate(wrongRoot);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.INVALID, r.status,
+                    "wrong root element returns INVALID, not WARNING");
+            TestAssertions.assertTrue(!r.detail.contains("ProductId"),
+                    "wrong root detail does not mention ProductId");
+        } finally { Files.deleteIfExists(wrongRoot); }
+
+        // Missing Amplifier/FX sections -> INVALID.
+        Path missingFx = tempFuse("<Preset ProductId=\"13\"></Preset>");
+        try {
+            PresetExplorerValidator.ValidationResult r = PresetExplorerValidator.validate(missingFx);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.INVALID, r.status,
+                    "missing Amplifier/FX sections returns INVALID");
+        } finally { Files.deleteIfExists(missingFx); }
+    }
+
+    private static void presetExplorerWarningStatus() throws IOException {
+        TestAssertions.section("PresetExplorerValidator - WARNING status on ProductId mismatch (different Mustang model)");
+
+        // ProductId != "13" but valid XML structure -> WARNING, not INVALID.
+        // This is the key distinction: wrong model, not a corrupt file.
+        Path wrongModel = tempFuse("<Preset ProductId=\"1\"></Preset>");
+        try {
+            PresetExplorerValidator.ValidationResult r = PresetExplorerValidator.validate(wrongModel);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.WARNING, r.status,
+                    "ProductId mismatch returns WARNING (not INVALID or VALID)");
+            TestAssertions.assertTrue(r.detail.contains("ProductId"),
+                    "WARNING detail message mentions ProductId");
+            TestAssertions.assertTrue(r.preset == null,
+                    "WARNING result has null preset (cannot safely load a different-model preset)");
+        } finally { Files.deleteIfExists(wrongModel); }
+
+        // A different non-13 ProductId -> still WARNING.
+        Path otherModel = tempFuse("<Preset ProductId=\"7\"></Preset>");
+        try {
+            PresetExplorerValidator.ValidationResult r = PresetExplorerValidator.validate(otherModel);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.WARNING, r.status,
+                    "ProductId=7 (another non-13 model) also returns WARNING");
+        } finally { Files.deleteIfExists(otherModel); }
+
+        // ProductId=13 with unrecognized amp Module ID -> INVALID (module-parse failure, not ProductId issue).
+        // Confirms WARNING is specifically ProductId-present-but-wrong, not just any parse failure.
+        Path badModule = tempFuse(
+                "<Preset ProductId=\"13\"><Amplifier><Module ID=\"0\"></Module></Amplifier><FX></FX></Preset>");
+        try {
+            PresetExplorerValidator.ValidationResult r = PresetExplorerValidator.validate(badModule);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.INVALID, r.status,
+                    "ProductId=13 with unrecognized amp Module ID returns INVALID (module-parse failure, not ProductId)");
+            TestAssertions.assertTrue(!r.detail.contains("ProductId"),
+                    "amp module parse failure detail does not mention ProductId");
+        } finally { Files.deleteIfExists(badModule); }
     }
 }

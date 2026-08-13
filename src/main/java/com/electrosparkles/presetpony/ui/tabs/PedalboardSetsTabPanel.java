@@ -63,6 +63,13 @@ public class PedalboardSetsTabPanel extends TabPanel {
         JPanel top = new JPanel();
         top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
 
+        JLabel hintLabel = new JLabel("Save and recall your four effects slots as a named set, independent of your amp preset.");
+        hintLabel.setFont(hintLabel.getFont().deriveFont(10f));
+        hintLabel.setForeground(Color.GRAY);
+        hintLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        hintLabel.setBorder(BorderFactory.createEmptyBorder(0, 2, 6, 2));
+        top.add(hintLabel);
+
         // Folder row: label + path (left, wraps), button (right, top-aligned)
         JPanel folderRow = new JPanel(new BorderLayout(6, 4));
         folderRow.setBorder(BorderFactory.createEmptyBorder(4, 0, 8, 0));
