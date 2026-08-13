@@ -5,7 +5,7 @@ import com.electrosparkles.presetpony.CurrentPreset;
 /**
  * Callback interface for notifying the frame when a tab has changed the preset state.
  * Used by tabs to trigger a full UI refresh across all tabs after operations like
- * switching presets, saving to slot, or loading pedalboard sets.
+ * switching presets, saving to slot, or loading pedalboards.
  */
 public interface PresetChangedCallback {
     /**

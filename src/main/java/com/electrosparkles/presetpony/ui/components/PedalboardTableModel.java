@@ -1,6 +1,6 @@
 package com.electrosparkles.presetpony.ui.components;
 
-import com.electrosparkles.presetpony.PedalboardSet;
+import com.electrosparkles.presetpony.Pedalboard;
 import javax.swing.table.AbstractTableModel;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -9,15 +9,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Table model for pedalboard sets list (Name, Modified columns).
+ * Table model for pedalboard list (Name, Modified columns).
  * Extracted from inline anonymous class in PresetPony.
  */
 public class PedalboardTableModel extends AbstractTableModel {
     private final List<Path> pedalboardRows;
-    private final Map<Path, PedalboardSet> pedalboardCache;
+    private final Map<Path, Pedalboard> pedalboardCache;
     private final String[] columns = {"Name", "Modified"};
 
-    public PedalboardTableModel(List<Path> pedalboardRows, Map<Path, PedalboardSet> pedalboardCache) {
+    public PedalboardTableModel(List<Path> pedalboardRows, Map<Path, Pedalboard> pedalboardCache) {
         this.pedalboardRows = pedalboardRows;
         this.pedalboardCache = pedalboardCache;
     }
@@ -40,11 +40,11 @@ public class PedalboardTableModel extends AbstractTableModel {
     @Override
     public Object getValueAt(int row, int column) {
         Path path = pedalboardRows.get(row);
-        PedalboardSet set = pedalboardCache.get(path);
+        Pedalboard pedalboard = pedalboardCache.get(path);
         if (column == 0) {
-            return (set != null) ? set.name() : ("\u26A0 " + path.getFileName() + " (couldn't be read)");
+            return (pedalboard != null) ? pedalboard.name() : ("\u26A0 " + path.getFileName() + " (couldn't be read)");
         }
-        return (set != null) ? formatPedalboardTimestamp(set.modified()) : "";
+        return (pedalboard != null) ? formatPedalboardTimestamp(pedalboard.modified()) : "";
     }
 
     private static String formatPedalboardTimestamp(Instant instant) {

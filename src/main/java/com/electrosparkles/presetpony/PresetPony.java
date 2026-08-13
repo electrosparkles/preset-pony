@@ -35,7 +35,7 @@ public class PresetPony extends JFrame {
     private PresetsTabPanel presetsTab;
     private PresetExplorerTabPanel presetExplorerTab;
     private ToyboxTabPanel toyboxTab;
-    private PedalboardSetsTabPanel pedalboardTab;
+    private PedalboardTabPanel pedalboardTab;
     private AboutTabPanel aboutTab;
 
     private final StatusUpdater statusUpdater = text -> {
@@ -81,7 +81,7 @@ public class PresetPony extends JFrame {
         presetsTab = new PresetsTabPanel(statusUpdater, controlDelegate);
         presetExplorerTab = new PresetExplorerTabPanel(statusUpdater, controlDelegate);
         toyboxTab = new ToyboxTabPanel(statusUpdater, controlDelegate);
-        pedalboardTab = new PedalboardSetsTabPanel(statusUpdater, controlDelegate);
+        pedalboardTab = new PedalboardTabPanel(statusUpdater, controlDelegate);
         aboutTab = new AboutTabPanel(statusUpdater, controlDelegate);
 
         // Wire preset-changed callback for all tabs
@@ -127,7 +127,7 @@ public class PresetPony extends JFrame {
         tabs.addTab("Presets", presetsTab.getPanel());
         tabs.addTab("Preset Explorer", presetExplorerTab.getPanel());
         tabs.addTab("Toybox", toyboxTab.getPanel());
-        tabs.addTab("Pedalboard Sets", pedalboardTab.getPanel());
+        tabs.addTab("Pedalboards", pedalboardTab.getPanel());
         tabs.addTab("About", aboutTab.getPanel());
         add(tabs, BorderLayout.CENTER);
 

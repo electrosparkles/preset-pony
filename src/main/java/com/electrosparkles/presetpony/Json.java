@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Minimal dependency-free JSON reader/writer — just enough for PedalboardSetStore's own
+ * Minimal dependency-free JSON reader/writer — just enough for PedalboardStore's own
  * files (set files + the recent-files list). Not a general-purpose JSON library: no
  * streaming, no custom (de)serializers. Values are plain Map&lt;String,Object&gt; / List&lt;Object&gt; /
  * String / Double / Boolean / null, same shape {@code parse()} hands back either way.

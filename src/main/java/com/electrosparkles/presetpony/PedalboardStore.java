@@ -15,11 +15,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * File-backed storage for {@link PedalboardSet}s — see docs/pedalboard-sets-plan.md for
- * the format, folder, and MRU design. Swing-free and directory-parameterized throughout
+ * File-backed storage for {@link Pedalboard}s
+ * Swing-free and directory-parameterized throughout
  * so it's testable against a temp dir, same as the rest of this project's I/O classes.
  */
-public final class PedalboardSetStore {
+public final class PedalboardStore {
 
     public static final String FORMAT = "preset-pony-pedalboard-set";
     public static final int FORMAT_VERSION = 1;
@@ -28,7 +28,7 @@ public final class PedalboardSetStore {
 
     private static final String RECENT_FILE_NAME = "recent.json";
 
-    private PedalboardSetStore() {
+    private PedalboardStore() {
     }
 
     public static Path defaultDirectory() {
@@ -39,39 +39,39 @@ public final class PedalboardSetStore {
 
     /** Writes a brand-new file (slugified name, collision-suffixed), and records it as
      * the most-recently-used entry. Returns the path written. */
-    public static Path save(Path dir, PedalboardSet set) throws IOException {
+    public static Path save(Path dir, Pedalboard pedalboard) throws IOException {
         Files.createDirectories(dir);
-        String fileName = uniqueFileName(dir, slugify(set.name()));
+        String fileName = uniqueFileName(dir, slugify(pedalboard.name()));
         Path file = dir.resolve(fileName);
-        Files.writeString(file, toJson(set), StandardCharsets.UTF_8);
+        Files.writeString(file, toJson(pedalboard), StandardCharsets.UTF_8);
         touchRecent(dir, file, DEFAULT_MRU_CAPACITY);
         return file;
     }
 
     /** Overwrites an existing file in place (same path, same name) — used when re-saving
-     * over a set the user already has loaded, rather than creating a new file/name. */
-    public static void overwrite(Path file, PedalboardSet set) throws IOException {
-        PedalboardSet touched = set.withEffects(set.effects()); // same content, modified bumped to now
+     * over a pedalboard the user already has loaded, rather than creating a new file/name. */
+    public static void overwrite(Path file, Pedalboard pedalboard) throws IOException {
+        Pedalboard touched = pedalboard.withEffects(pedalboard.effects()); // same content, modified bumped to now
         Files.writeString(file, toJson(touched), StandardCharsets.UTF_8);
         Path dir = file.getParent();
         if (dir != null) touchRecent(dir, file, DEFAULT_MRU_CAPACITY);
     }
 
-    public static PedalboardSet load(Path file) throws IOException {
-        PedalboardSet set = readOnly(file);
+    public static Pedalboard load(Path file) throws IOException {
+        Pedalboard pedalboard = readOnly(file);
         Path dir = file.getParent();
         if (dir != null) touchRecent(dir, file, DEFAULT_MRU_CAPACITY);
-        return set;
+        return pedalboard;
     }
 
     /** Same as {@link #load(Path)} but doesn't touch the MRU ring - for browsing/listing
      * (e.g. populating a display cache) where reading the file shouldn't itself count as
      * "using" that set. */
-    public static PedalboardSet peek(Path file) throws IOException {
+    public static Pedalboard peek(Path file) throws IOException {
         return readOnly(file);
     }
 
-    private static PedalboardSet readOnly(Path file) throws IOException {
+    private static Pedalboard readOnly(Path file) throws IOException {
         String text = Files.readString(file, StandardCharsets.UTF_8);
         return fromJson(text);
     }
@@ -142,16 +142,16 @@ public final class PedalboardSetStore {
 
     // ---- JSON mapping ----
 
-    static String toJson(PedalboardSet set) {
+    static String toJson(Pedalboard pedalboard) {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("format", FORMAT);
         root.put("formatVersion", (double) FORMAT_VERSION);
-        root.put("name", set.name());
-        root.put("created", set.created().toString());
-        root.put("modified", set.modified().toString());
+        root.put("name", pedalboard.name());
+        root.put("created", pedalboard.created().toString());
+        root.put("modified", pedalboard.modified().toString());
 
         List<Object> effects = new ArrayList<>();
-        for (EffectSettings fx : set.effects()) {
+        for (EffectSettings fx : pedalboard.effects()) {
             Map<String, Object> e = new LinkedHashMap<>();
             e.put("slot", (double) fx.slot());
             EffectModel model = (fx.model() != null) ? fx.model() : EffectModel.EMPTY;
@@ -168,7 +168,7 @@ public final class PedalboardSetStore {
     }
 
     @SuppressWarnings("unchecked")
-    static PedalboardSet fromJson(String text) {
+    static Pedalboard fromJson(String text) {
         Object parsed;
         try {
             parsed = Json.parse(text);
@@ -230,7 +230,7 @@ public final class PedalboardSetStore {
             }
         }
 
-        return new PedalboardSet(name, effects, created, modified);
+        return new Pedalboard(name, effects, created, modified);
     }
 
     private static Instant parseInstantOr(Object value, Instant fallback) {

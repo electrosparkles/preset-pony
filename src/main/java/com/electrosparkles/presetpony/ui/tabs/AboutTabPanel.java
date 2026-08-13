@@ -91,7 +91,7 @@ public class AboutTabPanel extends TabPanel {
         prefsPanel.setBorder(BorderFactory.createTitledBorder("Preferences"));
         
         // Wrap text using HTML (Swing JLabel supports this)
-        String text = "Minimal preferences saved in JDK storage: pedalboard sets folder location.";
+        String text = "Minimal preferences saved in JDK storage: pedalboards folder location.";
         JLabel prefsLabel = new JLabel("<html>" + text.replace("\n", "<br>") + "</html>");
         prefsLabel.setFont(prefsLabel.getFont().deriveFont(11f));
         prefsLabel.setVerticalAlignment(SwingConstants.TOP);
@@ -113,7 +113,7 @@ public class AboutTabPanel extends TabPanel {
             Preferences prefs = Preferences.userNodeForPackage(AppSettings.class);
             prefs.clear();
             JOptionPane.showMessageDialog(panel,
-                    "Preferences cache cleared. The pedalboard sets folder location will be reset on next startup.",
+                    "Preferences cache cleared. The pedalboards folder location will be reset on next startup.",
                     "Cache cleared", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(panel,

@@ -14,30 +14,30 @@ import java.util.*;
 import java.util.List;
 
 /**
- * Pedalboard Sets tab: file browser, MRU strip, save/load/rename/delete.
+ * Pedalboards tab: file browser, MRU strip, save/load/rename/delete.
  */
-public class PedalboardSetsTabPanel extends TabPanel {
+public class PedalboardTabPanel extends TabPanel {
     private final JPanel panel;
 
     private static final int MRU_DISPLAY_LIMIT = 6;
     private Path pedalboardDir;
-    private Path currentlyLoadedSet;  // Track which set is currently loaded
-    private final Map<Path, PedalboardSet> pedalboardCache = new HashMap<>();
+    private Path currentlyLoadedBoard;  // Track which pedalboard is currently loaded
+    private final Map<Path, Pedalboard> pedalboardCache = new HashMap<>();
     private final List<Path> pedalboardRows = new ArrayList<>();
     private final PedalboardTableModel tableModel;
     private final JTable pedalboardTable;
     private final JPanel pedalboardMruChips;
     private final JLabel pedalboardFolderLabel;
-    private final JButton saveButton;  // Only enabled when a set is loaded
+    private final JButton saveButton;  // Only enabled when a board is loaded
 
-    public PedalboardSetsTabPanel(StatusUpdater statusUpdater, ControlStateDelegate controlDelegate) {
+    public PedalboardTabPanel(StatusUpdater statusUpdater, ControlStateDelegate controlDelegate) {
         super(statusUpdater, controlDelegate);
         tableModel = new PedalboardTableModel(pedalboardRows, pedalboardCache);
         pedalboardTable = new JTable(tableModel);
         pedalboardMruChips = new JPanel();
         pedalboardFolderLabel = new JLabel();
         saveButton = new JButton("Save");
-        currentlyLoadedSet = null;
+        currentlyLoadedBoard = null;
         panel = buildPanel();
     }
 
@@ -127,15 +127,15 @@ public class PedalboardSetsTabPanel extends TabPanel {
         JButton renameButton = new JButton("Rename selected...");
         JButton deleteButton = new JButton("Delete selected");
         
-        saveButton.setEnabled(false);  // Only enable when a set is loaded
-        saveAsButton.addActionListener(e -> onSavePedalboardSetAs());
-        saveButton.addActionListener(e -> onSavePedalboardSet());
+        saveButton.setEnabled(false);  // Only enable when a board is loaded
+        saveAsButton.addActionListener(e -> onSavePedalboardAs());
+        saveButton.addActionListener(e -> onSavePedalboard());
         loadButton.addActionListener(e -> {
             Path selected = selectedPedalboardPath();
-            if (selected != null) applyPedalboardSet(selected);
+            if (selected != null) applyPedalboard(selected);
         });
-        renameButton.addActionListener(e -> onRenamePedalboardSet());
-        deleteButton.addActionListener(e -> onDeletePedalboardSet());
+        renameButton.addActionListener(e -> onRenamePedalboard());
+        deleteButton.addActionListener(e -> onDeletePedalboard());
 
         JPanel buttonsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
         buttonsRow.add(saveAsButton);
@@ -145,8 +145,8 @@ public class PedalboardSetsTabPanel extends TabPanel {
         buttonsRow.add(deleteButton);
         panel.add(buttonsRow, BorderLayout.SOUTH);
 
-        pedalboardDir = AppSettings.pedalboardSetsFolder();
-        refreshPedalboardSetsUi();
+        pedalboardDir = AppSettings.pedalboardsFolder();
+        refreshPedalboardsUi();
 
         return panel;
     }
@@ -156,9 +156,9 @@ public class PedalboardSetsTabPanel extends TabPanel {
         return (row >= 0 && row < pedalboardRows.size()) ? pedalboardRows.get(row) : null;
     }
 
-    private void refreshPedalboardSetsUi() {
+    private void refreshPedalboardsUi() {
         String pathText = pedalboardDir.toString();
-        if (!AppSettings.isPedalboardSetsFolderConfigured()) {
+        if (!AppSettings.isPedalboardsFolderConfigured()) {
             pathText += "  (not yet chosen - will be set on first save)";
         }
         // Wrap in HTML with width constraint to force text wrapping
@@ -167,27 +167,27 @@ public class PedalboardSetsTabPanel extends TabPanel {
         pedalboardRows.clear();
         pedalboardCache.clear();
         try {
-            for (Path file : PedalboardSetStore.list(pedalboardDir)) {
+            for (Path file : PedalboardStore.list(pedalboardDir)) {
                 try {
-                    pedalboardCache.put(file, PedalboardSetStore.peek(file));
+                    pedalboardCache.put(file, PedalboardStore.peek(file));
                 } catch (Exception ignored) {
                 }
                 pedalboardRows.add(file);
             }
         } catch (IOException ex) {
-            updateStatus("Couldn't list pedalboard sets: " + ex.getMessage());
+            updateStatus("Couldn't list pedalboards: " + ex.getMessage());
         }
         tableModel.fireTableDataChanged();
 
         pedalboardMruChips.removeAll();
         try {
-            List<Path> recent = PedalboardSetStore.recent(pedalboardDir);
+            List<Path> recent = PedalboardStore.recent(pedalboardDir);
             for (int i = 0; i < Math.min(MRU_DISPLAY_LIMIT, recent.size()); i++) {
                 Path file = recent.get(i);
-                PedalboardSet cached = pedalboardCache.get(file);
+                Pedalboard cached = pedalboardCache.get(file);
                 String label = (cached != null) ? cached.name() : file.getFileName().toString();
                 JButton chip = new JButton(label);
-                chip.addActionListener(e -> applyPedalboardSet(file));
+                chip.addActionListener(e -> applyPedalboard(file));
                 pedalboardMruChips.add(chip);
             }
         } catch (IOException ignored) {
@@ -197,13 +197,13 @@ public class PedalboardSetsTabPanel extends TabPanel {
     }
 
     private boolean ensurePedalboardFolderChosen() {
-        if (AppSettings.isPedalboardSetsFolderConfigured()) return true;
+        if (AppSettings.isPedalboardsFolderConfigured()) return true;
 
-        Path suggested = AppSettings.defaultPedalboardSetsFolder();
+        Path suggested = AppSettings.defaultPedalboardsFolder();
         Object[] options = {"Use this folder", "Choose a different folder..."};
         int choice = JOptionPane.showOptionDialog(panel,
-                "Where should your pedalboard sets be saved?\n\nSuggested:\n" + suggested,
-                "Choose Pedalboard Sets folder", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
+                "Where should your pedalboard be saved?\n\nSuggested:\n" + suggested,
+                "Choose Pedalboard folder", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
                 null, options, options[0]);
 
         Path chosen;
@@ -211,7 +211,7 @@ public class PedalboardSetsTabPanel extends TabPanel {
             chosen = suggested;
         } else if (choice == 1) {
             JFileChooser chooser = new JFileChooser(suggested.getParent() != null ? suggested.getParent().toFile() : suggested.toFile());
-            chooser.setDialogTitle("Choose Pedalboard Sets folder");
+            chooser.setDialogTitle("Choose Pedalboards folder");
             chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
             if (chooser.showOpenDialog(panel) != JFileChooser.APPROVE_OPTION) return false;
             chosen = chooser.getSelectedFile().toPath();
@@ -219,154 +219,155 @@ public class PedalboardSetsTabPanel extends TabPanel {
             return false;
         }
 
-        AppSettings.setPedalboardSetsFolder(chosen);
+        AppSettings.setPedalboardsFolder(chosen);
         pedalboardDir = chosen;
-        refreshPedalboardSetsUi();
+        refreshPedalboardsUi();
         return true;
     }
 
-    private void onSavePedalboardSetAs() {
+    private void onSavePedalboardAs() {
         if (current == null) {
             JOptionPane.showMessageDialog(panel, "Connect (or import a preset) first.",
-                    "Pedalboard Sets", JOptionPane.WARNING_MESSAGE);
+                    "Pedalboard", JOptionPane.WARNING_MESSAGE);
             return;
         }
         if (!ensurePedalboardFolderChosen()) return;
 
-        String name = JOptionPane.showInputDialog(panel, "Name for this pedalboard set:",
-                "Save Pedalboard Set", JOptionPane.PLAIN_MESSAGE);
+        String name = JOptionPane.showInputDialog(panel, "Name for this pedalboard:",
+                "Save Pedalboard", JOptionPane.PLAIN_MESSAGE);
         if (name == null || name.isBlank()) return;
 
         try {
-            Path saved = PedalboardSetStore.save(pedalboardDir, PedalboardSet.capture(name.trim(), current.effects()));
-            currentlyLoadedSet = saved;
+            Path saved = PedalboardStore.save(pedalboardDir, Pedalboard.capture(name.trim(), current.effects()));
+            currentlyLoadedBoard = saved;
             saveButton.setEnabled(true);
-            refreshPedalboardSetsUi();
+            refreshPedalboardsUi();
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(panel, "Could not save set:\n" + ex.getMessage(),
                     "Save failed", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private void onSavePedalboardSet() {
-        if (currentlyLoadedSet == null || current == null) {
-            JOptionPane.showMessageDialog(panel, "Load a pedalboard set first, then modify and save.",
-                    "Pedalboard Sets", JOptionPane.WARNING_MESSAGE);
+    private void onSavePedalboard() {
+        if (currentlyLoadedBoard == null || current == null) {
+            JOptionPane.showMessageDialog(panel, "Load a pedalboard first, then modify and save.",
+                    "Pedalboards", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
         try {
-            PedalboardSetStore.overwrite(currentlyLoadedSet, PedalboardSet.capture(
-                    pedalboardCache.get(currentlyLoadedSet).name(), current.effects()));
-            updateStatus("Saved to " + currentlyLoadedSet.getFileName());
-            refreshPedalboardSetsUi();
+            PedalboardStore.overwrite(currentlyLoadedBoard, Pedalboard.capture(
+                    pedalboardCache.get(currentlyLoadedBoard).name(), current.effects()));
+            updateStatus("Saved to " + currentlyLoadedBoard.getFileName());
+            refreshPedalboardsUi();
         } catch (IOException ex) {
-            JOptionPane.showMessageDialog(panel, "Could not save set:\n" + ex.getMessage(),
+            JOptionPane.showMessageDialog(panel, "Could not save pedalboard:\n" + ex.getMessage(),
                     "Save failed", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private void applyPedalboardSet(Path file) {
+    private void applyPedalboard(Path file) {
         if (current == null) {
             JOptionPane.showMessageDialog(panel, "Connect (or import a preset) first.",
-                    "Pedalboard Sets", JOptionPane.WARNING_MESSAGE);
+                    "Pedalboard", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        updateStatus(conn == null ? "Applying pedalboard set (preview only - not connected)..." : "Applying pedalboard set...");
+        updateStatus(conn == null ? "Applying pedalboard (preview only - not connected)..." : "Applying pedalboard ...");
 
-        new SwingWorker<PedalboardSet, Void>() {
+        new SwingWorker<Pedalboard, Void>() {
             @Override
-            protected PedalboardSet doInBackground() throws Exception {
-                PedalboardSet set = PedalboardSetStore.load(file);
+            protected Pedalboard doInBackground() throws Exception {
+                Pedalboard pedalboard
+                        = PedalboardStore.load(file);
                 if (conn != null) {
                     for (int slot = 0; slot < 4; slot++) {
-                        conn.writeEffectSettings(slot, set.effects()[slot]);
+                        conn.writeEffectSettings(slot, pedalboard.effects()[slot]);
                     }
                 }
-                return set;
+                return pedalboard;
             }
 
             @Override
             protected void done() {
                 try {
-                    PedalboardSet set = get();
+                    Pedalboard pedalboard = get();
                     current = new CurrentPreset(current.presetNumber(), current.name(), current.amp(),
-                            set.effects(), current.presetNames());
-                    currentlyLoadedSet = file;
+                            pedalboard.effects(), current.presetNames());
+                    currentlyLoadedBoard = file;
                     saveButton.setEnabled(true);
                     updateStatus(conn == null ? "Preview only (not connected) - change not sent" : "Connected");
                 } catch (Exception ex) {
-                    currentlyLoadedSet = null;
+                    currentlyLoadedBoard = null;
                     saveButton.setEnabled(false);
                     updateStatus("Error: " + ex.getMessage());
-                    JOptionPane.showMessageDialog(panel, "Couldn't load that set:\n" + ex.getMessage(),
-                            "Pedalboard Sets", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(panel, "Couldn't load that pedalboard:\n" + ex.getMessage(),
+                            "Pedalboards", JOptionPane.ERROR_MESSAGE);
                 }
-                refreshPedalboardSetsUi();
+                refreshPedalboardsUi();
             }
         }.execute();
     }
 
-    private void onRenamePedalboardSet() {
+    private void onRenamePedalboard() {
         Path selected = selectedPedalboardPath();
         if (selected == null) return;
-        PedalboardSet existing = pedalboardCache.get(selected);
+        Pedalboard existing = pedalboardCache.get(selected);
         if (existing == null) {
             JOptionPane.showMessageDialog(panel, "That file couldn't be read - fix or remove it before renaming.",
-                    "Pedalboard Sets", JOptionPane.WARNING_MESSAGE);
+                    "Pedalboard ", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        String newName = (String) JOptionPane.showInputDialog(panel, "Rename to:", "Rename Pedalboard Set",
+        String newName = (String) JOptionPane.showInputDialog(panel, "Rename to:", "Rename Pedalboard",
                 JOptionPane.PLAIN_MESSAGE, null, null, existing.name());
         if (newName == null || newName.isBlank() || newName.trim().equals(existing.name())) return;
 
         try {
-            PedalboardSetStore.delete(selected);
-            Path renamed = PedalboardSetStore.save(pedalboardDir, existing.withName(newName.trim()));
-            if (currentlyLoadedSet != null && currentlyLoadedSet.equals(selected)) {
-                currentlyLoadedSet = renamed;
+            PedalboardStore.delete(selected);
+            Path renamed = PedalboardStore.save(pedalboardDir, existing.withName(newName.trim()));
+            if (currentlyLoadedBoard != null && currentlyLoadedBoard.equals(selected)) {
+                currentlyLoadedBoard = renamed;
             }
-            refreshPedalboardSetsUi();
+            refreshPedalboardsUi();
         } catch (IOException ex) {
-            JOptionPane.showMessageDialog(panel, "Could not rename set:\n" + ex.getMessage(),
+            JOptionPane.showMessageDialog(panel, "Could not rename board\n" + ex.getMessage(),
                     "Rename failed", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private void onDeletePedalboardSet() {
+    private void onDeletePedalboard() {
         Path selected = selectedPedalboardPath();
         if (selected == null) return;
-        PedalboardSet existing = pedalboardCache.get(selected);
+        Pedalboard existing = pedalboardCache.get(selected);
         String label = (existing != null) ? existing.name() : selected.getFileName().toString();
 
-        int confirm = JOptionPane.showConfirmDialog(panel, "Delete pedalboard set \"" + label + "\"?\nThis cannot be undone.",
+        int confirm = JOptionPane.showConfirmDialog(panel, "Delete pedalboard \"" + label + "\"?\nThis cannot be undone.",
                 "Confirm delete", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (confirm != JOptionPane.YES_OPTION) return;
 
         try {
-            PedalboardSetStore.delete(selected);
-            if (currentlyLoadedSet != null && currentlyLoadedSet.equals(selected)) {
-                currentlyLoadedSet = null;
+            PedalboardStore.delete(selected);
+            if (currentlyLoadedBoard != null && currentlyLoadedBoard.equals(selected)) {
+                currentlyLoadedBoard = null;
                 saveButton.setEnabled(false);
             }
-            refreshPedalboardSetsUi();
+            refreshPedalboardsUi();
         } catch (IOException ex) {
-            JOptionPane.showMessageDialog(panel, "Could not delete set:\n" + ex.getMessage(),
+            JOptionPane.showMessageDialog(panel, "Could not delete board:\n" + ex.getMessage(),
                     "Delete failed", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void onChangePedalboardFolder() {
-        Path startAt = AppSettings.isPedalboardSetsFolderConfigured() ? pedalboardDir : AppSettings.defaultPedalboardSetsFolder();
+        Path startAt = AppSettings.isPedalboardsFolderConfigured() ? pedalboardDir : AppSettings.defaultPedalboardsFolder();
         JFileChooser chooser = new JFileChooser(startAt.toFile());
-        chooser.setDialogTitle("Choose pedalboard sets folder");
+        chooser.setDialogTitle("Choose pedalboard folder");
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 
         if (chooser.showOpenDialog(panel) != JFileChooser.APPROVE_OPTION) return;
         Path newDir = chooser.getSelectedFile().toPath();
 
-        AppSettings.setPedalboardSetsFolder(newDir);
+        AppSettings.setPedalboardsFolder(newDir);
         pedalboardDir = newDir;
-        refreshPedalboardSetsUi();
+        refreshPedalboardsUi();
     }
 }
