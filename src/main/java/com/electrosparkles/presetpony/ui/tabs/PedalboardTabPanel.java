@@ -63,7 +63,7 @@ public class PedalboardTabPanel extends TabPanel {
         JPanel top = new JPanel();
         top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
 
-        JLabel hintLabel = new JLabel("Save and recall your four effects slots as a named set, independent of your amp preset.");
+        JLabel hintLabel = new JLabel("Save and recall your four effects slots as a named pedalboard, independent of your amp preset.");
         hintLabel.setFont(hintLabel.getFont().deriveFont(10f));
         hintLabel.setForeground(Color.GRAY);
         hintLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -243,7 +243,7 @@ public class PedalboardTabPanel extends TabPanel {
             saveButton.setEnabled(true);
             refreshPedalboardsUi();
         } catch (IOException ex) {
-            JOptionPane.showMessageDialog(panel, "Could not save set:\n" + ex.getMessage(),
+            JOptionPane.showMessageDialog(panel, "Could not save pedalboard:\n" + ex.getMessage(),
                     "Save failed", JOptionPane.ERROR_MESSAGE);
         }
     }
