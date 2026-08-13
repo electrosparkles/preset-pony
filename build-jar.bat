@@ -2,8 +2,12 @@
 REM build-jar.bat - Build PresetPony as a runnable JAR (Windows)
 
 setlocal enabledelayedexpansion
-REM Read version from version.properties FIRST
-for /f "tokens=2 delims==" %%v in ('findstr "app.version" version.properties') do set "APP_VERSION=%%v"
+REM Read version from version.properties and trim whitespace
+for /f "tokens=2 delims==" %%v in ('findstr "app.version" version.properties') do (
+    set "APP_VERSION=%%v"
+    REM Trim leading/trailing spaces
+    for /f "usebackq delims=" %%a in ('echo !APP_VERSION!') do set "APP_VERSION=%%a"
+)
 set SOURCE_DIR=src\main\java
 set BUILD_DIR=build
 set CLASSES_DIR=%BUILD_DIR%\classes
@@ -18,9 +22,6 @@ echo.
 echo PresetPony - JAR Build (Windows)
 echo ==================================================
 echo.
-
-REM Read version from version.properties
-for /f "tokens=2 delims==" %%v in ('findstr "app.version" version.properties') do set APP_VERSION=%%v
 echo Version: !APP_VERSION!
 echo.
 
@@ -56,7 +57,7 @@ set MANIFEST_FILE=%BUILD_DIR%\MANIFEST.MF
     echo Main-Class: %MAIN_CLASS%
     echo Class-Path: ../../lib/hid4java-0.8.0.jar ../../lib/jna-5.19.1.jar ../../lib/jna-platform-5.19.1.jar
     echo Implementation-Title: Mustang III Companion App
-    echo Implementation-Version: !APP_VERSION1
+    echo Implementation-Version: !APP_VERSION!
     echo Implementation-Vendor: Mustang Project
 ) > "%MANIFEST_FILE%"
 echo   Main-Class: %MAIN_CLASS%

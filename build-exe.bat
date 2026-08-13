@@ -23,9 +23,13 @@ echo PresetPony - EXE Build via jpackage (Windows)
 echo ==================================================
 echo.
 
-REM Read version from version.properties
-for /f "tokens=2 delims==" %%v in ('findstr "app.version" version.properties') do set APP_VERSION=%%v
-echo Version: %APP_VERSION%
+REM Read version from version.properties and trim whitespace
+for /f "tokens=2 delims==" %%v in ('findstr "app.version" version.properties') do (
+    set "APP_VERSION=%%v"
+    REM Trim leading/trailing spaces
+    for /f "usebackq delims=" %%a in ('echo !APP_VERSION!') do set "APP_VERSION=%%a"
+)
+echo Version: !APP_VERSION!
 echo.
 
 where jpackage >nul 2>&1
@@ -52,7 +56,7 @@ if exist "%RESOURCES_DIR%" (
     xcopy "%RESOURCES_DIR%" "%CLASSES_DIR%" /s /e /y >nul
 )
 if not exist "%CLASSES_DIR%\config" mkdir "%CLASSES_DIR%\config"
-echo app.version=%APP_VERSION%> "%CLASSES_DIR%\config\app-version.properties"
+echo app.version=!APP_VERSION!> "%CLASSES_DIR%\config\app-version.properties"
 
 echo [4/6] Creating manifest and jar...
 REM Class-Path entries are relative to the jar's own folder, since jpackage
@@ -84,7 +88,7 @@ jpackage ^
     --main-jar "%JAR_NAME%" ^
     --main-class "%MAIN_CLASS%" ^
     --icon "%ICON_FILE%" ^
-    --app-version "%APP_VERSION%" ^
+    --app-version "!APP_VERSION!" ^
     --vendor "Mustang Project" ^
     --java-options "--enable-native-access=ALL-UNNAMED"
 if errorlevel 1 (
@@ -94,7 +98,7 @@ if errorlevel 1 (
 
 echo [7/7] Creating zip archive with version in filename...
 REM Use PowerShell to compress the app folder
-powershell -NoProfile -Command "Compress-Archive -Path '%DIST_DIR%\%APP_NAME%' -DestinationPath '%DIST_DIR%\PresetPony-%APP_VERSION%-windows.zip' -Force"
+powershell -NoProfile -Command "Compress-Archive -Path '%DIST_DIR%\%APP_NAME%' -DestinationPath '%DIST_DIR%\PresetPony-!APP_VERSION!-windows.zip' -Force"
 if errorlevel 1 (
     echo Error: zip creation failed
     exit /b 1
@@ -105,7 +109,7 @@ echo ==================================================
 echo Build complete!
 echo App folder:  %DIST_DIR%\%APP_NAME%
 echo Run it:      %DIST_DIR%\%APP_NAME%\%APP_NAME%.exe
-echo Packaged:    %DIST_DIR%\PresetPony-%APP_VERSION%-windows.zip
+echo Packaged:    %DIST_DIR%\PresetPony-!APP_VERSION!-windows.zip
 echo.
 echo (Optional) To build a real installer instead of an app-image folder,
 echo install the WiX Toolset and re-run jpackage with --type exe or --type msi.
