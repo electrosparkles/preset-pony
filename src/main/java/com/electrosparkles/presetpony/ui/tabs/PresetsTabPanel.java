@@ -179,7 +179,7 @@ public class PresetsTabPanel extends TabPanel {
                 JOptionPane.INFORMATION_MESSAGE);
         if (proceed != JOptionPane.OK_OPTION) return;
 
-        Path defaultDir = Paths.get(System.getProperty("user.home"), "Documents", "Fender", "FUSE", "Backups");
+        Path defaultDir = AppSettings.presetsImportFolder();
         JFileChooser chooser = new JFileChooser(defaultDir.toFile());
         chooser.setDialogTitle("Backup all presets");
         chooser.setSelectedFile(new java.io.File(FusePresetBackup.suggestZipFileName()));
@@ -188,6 +188,7 @@ public class PresetsTabPanel extends TabPanel {
         if (chooser.showSaveDialog(panel) != JFileChooser.APPROVE_OPTION) return;
 
         Path zipPath = chooser.getSelectedFile().toPath();
+        AppSettings.setPresetsImportFolder(zipPath.getParent());  // Save the folder choice
         String zipName = zipPath.getFileName().toString();
         if (!zipName.toLowerCase().endsWith(".zip")) {
             zipPath = zipPath.resolveSibling(zipName + ".zip");
@@ -284,7 +285,7 @@ public class PresetsTabPanel extends TabPanel {
                 JOptionPane.INFORMATION_MESSAGE);
         if (proceed != JOptionPane.OK_OPTION) return;
 
-        Path defaultDir = Paths.get(System.getProperty("user.home"), "Documents", "Fender", "FUSE");
+        Path defaultDir = AppSettings.presetsImportFolder();
         JFileChooser chooser = new JFileChooser(defaultDir.toFile());
         chooser.setDialogTitle("Export all presets to CSV");
         chooser.setSelectedFile(new java.io.File(PresetCsvBackup.suggestCsvFileName()));
@@ -293,6 +294,7 @@ public class PresetsTabPanel extends TabPanel {
         if (chooser.showSaveDialog(panel) != JFileChooser.APPROVE_OPTION) return;
 
         Path csvPath = chooser.getSelectedFile().toPath();
+        AppSettings.setPresetsImportFolder(csvPath.getParent());  // Save the folder choice
         String csvName = csvPath.getFileName().toString();
         if (!csvName.toLowerCase().endsWith(".csv")) {
             csvPath = csvPath.resolveSibling(csvName + ".csv");

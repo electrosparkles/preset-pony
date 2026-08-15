@@ -232,9 +232,7 @@ public class PresetExplorerTabPanel extends TabPanel {
     // ── Folder selection ──────────────────────────────────────────────────────
 
     private void onChooseFolder() {
-        Path startAt = (explorerDir != null)
-                ? explorerDir
-                : Paths.get(System.getProperty("user.home"), "Documents", "Fender", "FUSE", "Presets");
+        Path startAt = AppSettings.explorerFolder();
 
         JFileChooser chooser = new JFileChooser(startAt.toFile());
         chooser.setDialogTitle("Choose folder containing .fuse presets");
@@ -244,6 +242,7 @@ public class PresetExplorerTabPanel extends TabPanel {
         if (chooser.showOpenDialog(panel) != JFileChooser.APPROVE_OPTION) return;
 
         explorerDir = chooser.getSelectedFile().toPath();
+        AppSettings.setExplorerFolder(explorerDir);  // Save the choice
         folderLabel.setText("<html><div style='width:350px'>" + explorerDir + "</div></html>");
         scanFolder();
     }
@@ -342,6 +341,18 @@ public class PresetExplorerTabPanel extends TabPanel {
         return "unknown";
     }
 
+    // ── Helper methods and model mapping ─────────────────────────────────────
+
+    private String getModelNameForProductId(String productId) {
+        return switch (productId) {
+            case "1" -> "Mustang v1 (I/II/III/IV/V)";
+            case "6" -> "Passport Mini";
+            case "7" -> "Mustang Floor";
+            case "13" -> "Mustang v2 (I/II/III/IV/V)";
+            default -> "Unknown Model (ProductId " + productId + ")";
+        };
+    }
+
     // ── Row click ─────────────────────────────────────────────────────────────
 
     private void onRowClicked(ExplorerRow row) {
@@ -352,18 +363,20 @@ public class PresetExplorerTabPanel extends TabPanel {
             case WARNING:
                 // ProductId mismatch — check bypass flag.
                 if (!bypassWarningsCheck.isSelected()) {
+                    String productId = extractProductId(row.detail);
+                    String modelName = getModelNameForProductId(productId);
                     JOptionPane.showMessageDialog(panel,
-                            "<html><b>Cannot load this preset.</b><br><br>"
-                            + "It was created for a different Mustang model (ProductId mismatch).<br>"
-                            + "Loading it would likely produce incorrect amp and effect settings.<br><br>"
-                            + "Check \"Ignore model warnings\" below to override this check.<br><br>"
+                            "<html><b>This preset is from " + modelName + ".</b><br><br>"
+                            + "It may not load correctly on this device.<br>"
+                            + "Check \"Ignore model warnings\" below to try loading it anyway.<br><br>"
                             + "<i>" + row.detail + "</i></html>",
-                            "Wrong model", JOptionPane.WARNING_MESSAGE);
+                            "Different Mustang model", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
                 // Bypass enabled — extract ProductId and show simplified warning, then attempt to load.
                 String productId = extractProductId(row.detail);
-                detailLabel.setText("Unsupported ProductId of '" + productId + "'. Unexpected results may occur.");
+                String modelName = getModelNameForProductId(productId);
+                detailLabel.setText("Preset from " + modelName + " (ProductId " + productId + "). Unexpected results may occur.");
                 
                 ValidationResult bypassRecheck = PresetExplorerValidator.validateIgnoringWarnings(row.path);
                 if (bypassRecheck.status == ValidationStatus.INVALID) {
@@ -384,10 +397,16 @@ public class PresetExplorerTabPanel extends TabPanel {
                 // Use the revalidated preset with warning bypassed.
                 if (bypassRecheck.preset != null && applyPresetCallback != null) {
                     applyPresetCallback.accept(bypassRecheck.preset);
+                    // Update row status to reflect successful bypass
+                    int modelIdx = rows.indexOf(row);
+                    row.status = ValidationStatus.BYPASSED;
+                    row.detail = "from " + modelName;
+                    row.preset = bypassRecheck.preset;
+                    if (modelIdx >= 0) tableModel.fireTableRowsUpdated(modelIdx, modelIdx);
                 }
                 if (conn == null) {
                     updateStatus("Loaded: " + row.path.getFileName()
-                            + " (warning bypassed - preview only; connect to send to amp)");
+                            + " (from " + modelName + "; warning bypassed - preview only; connect to send to amp)");
                 }
                 return;
 
@@ -457,7 +476,7 @@ public class PresetExplorerTabPanel extends TabPanel {
 
     // ── Status cell renderer ──────────────────────────────────────────────────
 
-    private static final class StatusCellRenderer extends DefaultTableCellRenderer {
+    private final class StatusCellRenderer extends DefaultTableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
@@ -467,12 +486,27 @@ public class PresetExplorerTabPanel extends TabPanel {
                     switch (status) {
                         case VALID   -> setText("\u2713 Valid");
                         case WARNING -> setText("\u26a0 Wrong model");
+                        case BYPASSED -> {
+                            int modelRow = table.convertRowIndexToModel(row);
+                            if (modelRow >= 0 && modelRow < rows.size()) {
+                                ExplorerRow r = rows.get(modelRow);
+                                setText("\u26a0 from " + r.detail.replace("from ", ""));
+                            }
+                        }
                         case INVALID -> setText("\u2717 Invalid");
                     }
                 } else {
                     switch (status) {
                         case VALID   -> { setText("\u2713 Valid");       setForeground(new Color(0, 140, 0)); }
                         case WARNING -> { setText("\u26a0 Wrong model"); setForeground(new Color(185, 110, 0)); }
+                        case BYPASSED -> {
+                            int modelRow = table.convertRowIndexToModel(row);
+                            if (modelRow >= 0 && modelRow < rows.size()) {
+                                ExplorerRow r = rows.get(modelRow);
+                                setText("\u26a0 from " + r.detail.replace("from ", ""));
+                                setForeground(new Color(185, 110, 0));
+                            }
+                        }
                         case INVALID -> { setText("\u2717 Invalid");     setForeground(Color.LIGHT_GRAY); }
                     }
                 }

@@ -17,6 +17,8 @@ import java.util.prefs.Preferences;
 public final class AppSettings {
 
     private static final String KEY_PEDALBOARD_FOLDER = "pedalboardsFolder";
+    private static final String KEY_EXPLORER_FOLDER = "explorerFolder";
+    private static final String KEY_PRESETS_IMPORT_FOLDER = "presetsImportFolder";
 
     private AppSettings() {
     }
@@ -44,19 +46,47 @@ public final class AppSettings {
         prefs().put(KEY_PEDALBOARD_FOLDER, folder.toString());
     }
 
+    /** The configured preset explorer folder, or {@link #defaultDocumentsFolder()}
+     * if nothing's been configured yet. */
+    public static Path explorerFolder() {
+        String stored = prefs().get(KEY_EXPLORER_FOLDER, null);
+        return (stored != null) ? Paths.get(stored) : defaultDocumentsFolder();
+    }
+
+    public static void setExplorerFolder(Path folder) {
+        prefs().put(KEY_EXPLORER_FOLDER, folder.toString());
+    }
+
+    /** The configured presets import folder, or {@link #defaultDocumentsFolder()}
+     * if nothing's been configured yet. */
+    public static Path presetsImportFolder() {
+        String stored = prefs().get(KEY_PRESETS_IMPORT_FOLDER, null);
+        return (stored != null) ? Paths.get(stored) : defaultDocumentsFolder();
+    }
+
+    public static void setPresetsImportFolder(Path folder) {
+        prefs().put(KEY_PRESETS_IMPORT_FOLDER, folder.toString());
+    }
+
+    /**
+     * The OS's Documents folder — shared default for all browse operations.
+     * Resolves via Swing's {@code FileSystemView} to handle localized Windows folder names.
+     */
+    public static Path defaultDocumentsFolder() {
+        try {
+            return javax.swing.filechooser.FileSystemView.getFileSystemView().getDefaultDirectory().toPath();
+        } catch (RuntimeException ex) {
+            return Paths.get(System.getProperty("user.home"));
+        }
+    }
+
     /**
      * Suggested pedalboard folder before the user has chosen one — under the OS's
      * actual "Documents" folder (via Swing's {@code FileSystemView}, which resolves the
      * real shell-reported location, including Windows' localized folder names).
      */
     public static Path defaultPedalboardsFolder() {
-        Path documents;
-        try {
-            documents = javax.swing.filechooser.FileSystemView.getFileSystemView().getDefaultDirectory().toPath();
-        } catch (RuntimeException ex) {
-            documents = Paths.get(System.getProperty("user.home"));
-        }
-        return documents.resolve("Preset Pony").resolve("Pedalboards");
+        return defaultDocumentsFolder().resolve("Preset Pony").resolve("Pedalboards");
     }
 
     /** Removes every preference this app has ever stored (currently just the pedalboard

@@ -26,9 +26,9 @@ echo.
 REM Read version from version.properties and trim whitespace
 for /f "tokens=2 delims==" %%v in ('findstr "app.version" version.properties') do (
     set "APP_VERSION=%%v"
-    REM Trim leading/trailing spaces
-    for /f "usebackq delims=" %%a in ('echo !APP_VERSION!') do set "APP_VERSION=%%a"
 )
+REM Trim leading and trailing spaces using string substitution
+for /f "usebackq tokens=*" %%a in ("%APP_VERSION%") do set "APP_VERSION=%%a"
 echo Version: !APP_VERSION!
 echo.
 

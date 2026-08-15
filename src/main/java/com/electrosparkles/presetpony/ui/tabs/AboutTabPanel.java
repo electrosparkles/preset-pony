@@ -49,30 +49,33 @@ public class AboutTabPanel extends TabPanel {
 
         JLabel versionLabel = new JLabel("v" + AppVersion.get() + "  —  Unofficial companion app for Fender Mustang amplifiers");
 
-        String bodyHtml = "<html><body style='width:300px; font-family:sans-serif;'>"
+        String bodyHtml = "<html><body style='font-family:sans-serif;'>"
                 + "<p>Preset Pony connects to Fender Mustang III V2 amplifiers over USB to "
                 + "read and write amp/effect settings, browse and switch stored presets, and "
                 + "import/export presets and backups.</p>"
                 + "<p>Mustang III V1 amplifiers use a similar but not identical protocol - some "
                 + "V1 units may partially work, but this app is neither built for nor tested "
                 + "against V1 hardware.</p>"
-                + "<p><b>Disclaimer:</b> this is an independent, unofficial tool, not affiliated "
+                + "<p style='margin-top: 12px;'><b>Disclaimer:</b> this is an independent, unofficial tool, not affiliated "
                 + "with or endorsed by Fender. It communicates directly with your amp's USB "
                 + "control interface. <b>Use it entirely at your own risk.</b> The developers "
                 + "accept no responsibility or liability for any damage to your amplifier, "
                 + "computer, or other equipment, or for any lost presets, arising from the use "
                 + "of this software.</p>"
+                + "<p style='margin-top: 12px; text-align: center;'>"
+                + "<a href='https://github.com/electrosparkles/preset-pony'>https://github.com/electrosparkles/preset-pony</a>"
+                + "</p>"
                 + "</body></html>";
-        JLabel bodyLabel = new JLabel(bodyHtml);
 
-        JPanel textPanel = new JPanel();
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.add(titleLabel);
-        textPanel.add(Box.createVerticalStrut(4));
-        textPanel.add(versionLabel);
-        textPanel.add(Box.createVerticalStrut(16));
-        textPanel.add(bodyLabel);
-        textPanel.add(Box.createVerticalGlue()); // Push everything up
+        JLabel bodyLabel = new JLabel(bodyHtml);
+        bodyLabel.setVerticalAlignment(SwingConstants.TOP);
+
+        JPanel textPanel = new JPanel(new BorderLayout(0, 2));
+        JPanel headerPanel = new JPanel(new BorderLayout(0, 4));
+        headerPanel.add(titleLabel, BorderLayout.NORTH);
+        headerPanel.add(versionLabel, BorderLayout.SOUTH);
+        textPanel.add(headerPanel, BorderLayout.NORTH);
+        textPanel.add(bodyLabel, BorderLayout.CENTER);
 
         List<Image> icons = loadAppIcons();
         if (!icons.isEmpty()) {
@@ -91,12 +94,12 @@ public class AboutTabPanel extends TabPanel {
         prefsPanel.setBorder(BorderFactory.createTitledBorder("Preferences"));
         
         // Wrap text using HTML (Swing JLabel supports this)
-        String text = "Minimal preferences saved in JDK storage: pedalboards folder location.";
+        String text = "Cached folder locations: pedalboards, preset explorer, backup/export destinations.";
         JLabel prefsLabel = new JLabel("<html>" + text.replace("\n", "<br>") + "</html>");
         prefsLabel.setFont(prefsLabel.getFont().deriveFont(11f));
         prefsLabel.setVerticalAlignment(SwingConstants.TOP);
         
-        JButton clearCacheButton = new JButton("Clear cache");
+        JButton clearCacheButton = new JButton("Clear all folder locations");
         clearCacheButton.addActionListener(e -> clearPreferencesCache());
         
         // Put label in CENTER, button stays at EAST
@@ -113,7 +116,8 @@ public class AboutTabPanel extends TabPanel {
             Preferences prefs = Preferences.userNodeForPackage(AppSettings.class);
             prefs.clear();
             JOptionPane.showMessageDialog(panel,
-                    "Preferences cache cleared. The pedalboards folder location will be reset on next startup.",
+                    "All cached folder locations cleared (pedalboards, preset explorer, backup/export).\n"
+                    + "Folder choices will be reset to defaults on next use.",
                     "Cache cleared", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(panel,

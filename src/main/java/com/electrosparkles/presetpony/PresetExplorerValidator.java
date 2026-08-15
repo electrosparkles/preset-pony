@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 public final class PresetExplorerValidator {
 
     /** Three-tier validation status. */
-    public enum ValidationStatus { VALID, WARNING, INVALID }
+    public enum ValidationStatus { VALID, WARNING, BYPASSED, INVALID }
 
     /** The outcome of validating a single file. */
     public static final class ValidationResult {
@@ -31,11 +31,15 @@ public final class PresetExplorerValidator {
         public final CurrentPreset preset; // non-null only when VALID
         public final String presetName;   // preset display name; empty string when unavailable
 
-        private ValidationResult(ValidationStatus status, String detail, CurrentPreset preset) {
+        private ValidationResult(ValidationStatus status, String detail, CurrentPreset preset, String presetName) {
             this.status     = status;
             this.detail     = detail != null ? detail : "";
             this.preset     = preset;
-            this.presetName = (preset != null && preset.name() != null) ? preset.name() : "";
+            this.presetName = (presetName != null && !presetName.isBlank()) ? presetName : (preset != null && preset.name() != null ? preset.name() : "");
+        }
+
+        private ValidationResult(ValidationStatus status, String detail, CurrentPreset preset) {
+            this(status, detail, preset, "");
         }
 
         public static ValidationResult valid(CurrentPreset preset) {
@@ -52,6 +56,25 @@ public final class PresetExplorerValidator {
     }
 
     private PresetExplorerValidator() {}
+
+    /**
+     * Extract preset name from a .fuse file without full validation.
+     * Used to get preset names even for WARNING (ProductId mismatch) files.
+     */
+    private static String extractNameFromFile(Path path) {
+        try {
+            String xml = Files.readString(path, java.nio.charset.StandardCharsets.UTF_8);
+            // Simple regex to extract name attribute from Info element
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("<Info[^>]*name=\"([^\"]*)\"");
+            java.util.regex.Matcher matcher = pattern.matcher(xml);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+        } catch (Exception e) {
+            // Ignore - return empty string if extraction fails
+        }
+        return "";
+    }
 
     /**
      * Returns all .fuse files in {@code dir} (flat scan, case-insensitive extension match),
@@ -78,9 +101,12 @@ public final class PresetExplorerValidator {
         } catch (IllegalArgumentException ex) {
             String msg = ex.getMessage() != null ? ex.getMessage() : ex.toString();
             // ProductId mismatch = a different Mustang model (not corrupt) → WARNING.
-            return msg.contains("ProductId")
-                    ? ValidationResult.warning(msg)
-                    : ValidationResult.invalid(msg);
+            if (msg.contains("ProductId")) {
+                // Extract preset name even though we're rejecting due to ProductId
+                String name = extractNameFromFile(path);
+                return new ValidationResult(ValidationStatus.WARNING, msg, null, name);
+            }
+            return ValidationResult.invalid(msg);
         } catch (IOException ex) {
             return ValidationResult.invalid("IO error: " + ex.getMessage());
         }

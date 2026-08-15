@@ -5,6 +5,14 @@ All notable changes to Preset Pony will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] — 2026-08-15
+
+### Improved
+- About tab: fixed text wrapping and layout, added GitHub repository URL
+- Folder locations now cached for Preset Explorer and Preset Backup/CSV Export (in addition to Pedalboards)
+- Simple warnings for loading presets for V1 Mustangs to a V2 Mustang amp
+- Clear preferences button now resets all cached folder locations
+
 ## [1.2.0] — 2026-08-13
 
 ### Added

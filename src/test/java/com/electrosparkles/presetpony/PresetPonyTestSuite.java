@@ -75,6 +75,7 @@ public class PresetPonyTestSuite {
         presetExplorerWarningStatus();
         presetExplorerValidateIgnoringWarningsOnWrongModel();
         presetExplorerValidateIgnoringWarningsStillRejectsCorruptFiles();
+        presetExplorerValidateIgnoringWarningsExtractsPresetName();
 
         TestAssertions.summarizeAndExit();
     }
@@ -1520,4 +1521,22 @@ public class PresetPonyTestSuite {
                     "validateIgnoringWarnings() rejects non-XML content");
         } finally { Files.deleteIfExists(garbage); }
     }
-}
+
+    private static void presetExplorerValidateIgnoringWarningsExtractsPresetName() throws IOException {
+        TestAssertions.section("PresetExplorerValidator - WARNING status extracts preset name even when ProductId mismatches");
+
+        // Real fixture with ProductId mismatch should extract the name from <Info name=\"...\"/>
+        Path realPreset = Path.of("src/test/resources/fixtures/M2_Basic Brit Colour.fuse");
+        String xml = Files.readString(realPreset);
+        String wrongProductId = xml.replace("ProductId=\"13\"", "ProductId=\"1\"");
+        Path wrongModel = tempFuse(wrongProductId);
+        try {
+            PresetExplorerValidator.ValidationResult r = PresetExplorerValidator.validate(wrongModel);
+            TestAssertions.assertEquals(PresetExplorerValidator.ValidationStatus.WARNING, r.status,
+                    "ProductId mismatch returns WARNING");
+            TestAssertions.assertEquals("Basic Brit Colour", r.presetName,
+                    "presetName extracted from WARNING result (not left blank)");
+            TestAssertions.assertTrue(r.preset == null,
+                    "WARNING result still has null preset (safety check)");
+        } finally { Files.deleteIfExists(wrongModel); }
+    }
